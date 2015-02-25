@@ -10,12 +10,29 @@
 
 #include "CImportXFile.h"    // Class to load meshes (taken from a full graphics engine)
 
+
+ID3D10EffectMatrixVariable* CModel::m_MatrixVar = NULL;
+
+ID3D10EffectVectorVariable* CModel::m_ColourVar = NULL;
+
+void CModel::SetMatrixShaderVariable(ID3D10EffectMatrixVariable* matrixVar)
+{
+	m_MatrixVar = matrixVar;
+}
+
+void CModel::SetColourShaderVariable(ID3D10EffectVectorVariable* colourVar)
+{
+	m_ColourVar = colourVar;
+}
+
 ///////////////////////////////
 // Constructors / Destructors
 
 // Constructor - initialise all camera settings - look at the constructor declaration in the header file to see that there are defaults provided for everything
 CModel::CModel( D3DXVECTOR3 position, D3DXVECTOR3 rotation, float scale )
 {
+	m_RenderTechnique = NULL;
+
 	m_Position = position;
 	m_Rotation = rotation;
 	SetScale( scale );
@@ -31,6 +48,9 @@ CModel::CModel( D3DXVECTOR3 position, D3DXVECTOR3 rotation, float scale )
 	m_NumIndices = 0;
 
 	m_HasGeometry = false;
+
+	//Initialise the texture variable to NULL
+	m_ModelTexture = NULL;
 }
 
 // Model destructor
@@ -87,11 +107,11 @@ bool CModel::Load( const string& fileName, ID3D10EffectTechnique* exampleTechniq
 	unsigned int numElts = 0;
 	unsigned int offset = 0;
 	// Position is always required
-	m_VertexElts[numElts].SemanticName = "POSITION";   // Semantic in HLSL (what is this data for)
-	m_VertexElts[numElts].SemanticIndex = 0;           // Index to add to semantic (a count for this kind of data, when using multiple of the same type, e.g. TEXCOORD0, TEXCOORD1)
-	m_VertexElts[numElts].Format = DXGI_FORMAT_R32G32B32_FLOAT; // Type of data - this one will be a float3 in the shader. Most data communicated as though it were colours
-	m_VertexElts[numElts].AlignedByteOffset = offset;  // Offset of element from start of vertex data (e.g. if we have position (float3), uv (float2) then normal, the normal's offset is 5 floats = 5*4 = 20)
-	m_VertexElts[numElts].InputSlot = 0;               // For when using multiple vertex buffers (e.g. instancing - an advanced topic)
+	m_VertexElts[numElts].SemanticName = "POSITION";					// Semantic in HLSL (what is this data for)
+	m_VertexElts[numElts].SemanticIndex = 0;							// Index to add to semantic (a count for this kind of data, when using multiple of the same type, e.g. TEXCOORD0, TEXCOORD1)
+	m_VertexElts[numElts].Format = DXGI_FORMAT_R32G32B32_FLOAT;			// Type of data - this one will be a float3 in the shader. Most data communicated as though it were colours
+	m_VertexElts[numElts].AlignedByteOffset = offset;					// Offset of element from start of vertex data (e.g. if we have position (float3), uv (float2) then normal, the normal's offset is 5 floats = 5*4 = 20)
+	m_VertexElts[numElts].InputSlot = 0;								// For when using multiple vertex buffers (e.g. instancing - an advanced topic)
 	m_VertexElts[numElts].InputSlotClass = D3D10_INPUT_PER_VERTEX_DATA; // Use this value for most cases (only changed for instancing)
 	m_VertexElts[numElts].InstanceDataStepRate = 0;                     // --"--
 	offset += 12;
@@ -183,6 +203,9 @@ bool CModel::Load( const string& fileName, ID3D10EffectTechnique* exampleTechniq
 		return false;
 	}
 
+	//Set the render technique for later rendering
+	m_RenderTechnique = exampleTechnique;
+
 	m_HasGeometry = true;
 	return true;
 }
@@ -210,7 +233,7 @@ void CModel::UpdateMatrix()
 
 // Control the model's position and rotation using keys provided. Amount of motion performed depends on frame time
 void CModel::Control( float frameTime, EKeyCode turnUp, EKeyCode turnDown, EKeyCode turnLeft, EKeyCode turnRight,  
-                      EKeyCode turnCW, EKeyCode turnCCW, EKeyCode moveForward, EKeyCode moveBackward )
+					  EKeyCode turnCW, EKeyCode turnCCW, EKeyCode moveForward, EKeyCode moveBackward )
 {
 	if (KeyHeld( turnDown ))
 	{
@@ -254,12 +277,26 @@ void CModel::Control( float frameTime, EKeyCode turnUp, EKeyCode turnDown, EKeyC
 
 
 // Render the model with the given technique. Assumes any shader variables for the technique have already been set up (e.g. matrices and textures)
-void CModel::Render( ID3D10EffectTechnique* technique )
+void CModel::Render(D3DXVECTOR3 colour)
 {
-	// Don't render if no geometry
-	if (!m_HasGeometry)
+	// Don't render if no geometry - or no render technique
+	if (!m_HasGeometry || !m_RenderTechnique)
 	{
 		return;
+	}
+
+	//Provide values for effect variables - texture, model colour, matrix
+	if (m_MatrixVar)	//Set the matrix (if the m_MatrixVar is valid)
+	{
+		m_MatrixVar->SetMatrix((float*)GetWorldMatrix());
+	}
+	if (m_ModelTexture)	//Set the texture (if the model has a texture and the texture is valid)
+	{
+		m_ModelTexture->SendToShader();
+	}
+	if (m_ColourVar)
+	{
+		m_ColourVar->SetRawValue(colour, 0, sizeof(D3DXVECTOR3));
 	}
 
 	// Select vertex and index buffer - assuming all data will be as triangle lists
@@ -272,10 +309,10 @@ void CModel::Render( ID3D10EffectTechnique* technique )
 	// Render the model. All the data and shader variables are prepared, now select the technique to use and draw.
 	// The loop is for advanced techniques that need multiple passes - we will only use techniques with one pass
 	D3D10_TECHNIQUE_DESC techDesc;
-	technique->GetDesc( &techDesc );
+	m_RenderTechnique->GetDesc(&techDesc);
 	for( UINT p = 0; p < techDesc.Passes; ++p )
 	{
-		technique->GetPassByIndex( p )->Apply( 0 );
+		m_RenderTechnique->GetPassByIndex(p)->Apply(0);
 		g_pd3dDevice->DrawIndexed( m_NumIndices, 0, 0 );
 	}
 	g_pd3dDevice->DrawIndexed( m_NumIndices, 0, 0 );

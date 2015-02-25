@@ -1,3 +1,8 @@
+// **%** is the symbol of code that needs to be redone/undone before submission that might be easily missed - check entire solution - including .fx file
+
+//Need a texture class
+
+
 //--------------------------------------------------------------------------------------
 //	GraphicsAssign1.cpp
 //
@@ -34,40 +39,43 @@
 
 #include "Defines.h" // General definitions shared by all source files
 #include "Model.h"   // Model class - encapsulates working with vertex/index data and world matrix
+#include "Light.h"	 // Light class - encapsulates lighting colour/position etc
 #include "Camera.h"  // Camera class - encapsulates the camera's view and projection matrix
 #include "Input.h"   // Input functions - not DirectX
-
+#include "Texture.h"
 
 //--------------------------------------------------------------------------------------
 // Global Scene Variables
 //--------------------------------------------------------------------------------------
+const unsigned int NO_OF_LIGHTS = 2;
 
 // Models and cameras encapsulated in classes for flexibity and convenience
 // The CModel class collects together geometry and world matrix, and provides functions to control the model and render it
 // The CCamera class handles the view and projections matrice, and provides functions to control the camera
 CModel* Cube;
+CModel* Teapot;
 CModel* Floor;
+CModel* WiggleSphere;
 CCamera* Camera;
 
-// Textures - no texture class yet so using DirectX variables
-ID3D10ShaderResourceView* CubeDiffuseMap = NULL;
-ID3D10ShaderResourceView* FloorDiffuseMap = NULL;
+// Textures
+CTexture* StoneTexture;
+CTexture* WoodTexture;
 
 // Light data - stored manually as there is no light class
-D3DXVECTOR3 Light1Colour = D3DXVECTOR3( 1.0f, 0.0f, 0.7f );
-D3DXVECTOR3 Light2Colour = D3DXVECTOR3( 1.0f, 0.8f, 0.2f );
-D3DXVECTOR3 AmbientColour = D3DXVECTOR3( 0.2f, 0.2f, 0.2f );
-float SpecularPower = 256.0f;
+D3DXVECTOR3 PulsingLightColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+D3DXVECTOR3 ChangingLightColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 
 // Display models where the lights are. One of the lights will follow an orbit
-CModel* Light1;
-CModel* Light2;
+CPositionalLight* Lights[NO_OF_LIGHTS];
+CAmbientLight* AmbientLight;
 const float LightOrbitRadius = 20.0f;
 const float LightOrbitSpeed  = 0.5f;
 
+//Misc values
+float Wiggle = 0.0f;
+float PulseTime = 0.0f;
 // Note: There are move & rotation speed constants in Defines.h
-
-
 
 //--------------------------------------------------------------------------------------
 // Shader Variables
@@ -77,18 +85,24 @@ const float LightOrbitSpeed  = 0.5f;
 // Effects / techniques
 ID3D10Effect*          Effect = NULL;
 ID3D10EffectTechnique* PlainColourTechnique = NULL;
+ID3D10EffectTechnique* DiffuseTexturedTechnique = NULL;
+ID3D10EffectTechnique* WiggleAndScrollTechnique = NULL;
+ID3D10EffectTechnique* PixDiffSpecTechnique = NULL;
 
 // Matrices
-ID3D10EffectMatrixVariable* WorldMatrixVar = NULL;
-ID3D10EffectMatrixVariable* ViewMatrixVar = NULL;
-ID3D10EffectMatrixVariable* ProjMatrixVar = NULL;
 ID3D10EffectMatrixVariable* ViewProjMatrixVar = NULL;
 
-// Textures
-ID3D10EffectShaderResourceVariable* DiffuseMapVar = NULL;
+// Lighting
+ID3D10EffectVectorVariable* CameraPositionVar = NULL;
+
+ID3D10EffectVectorVariable* LightPositionsVar = NULL;
+//Need two LightCOloursVar's one for diffuse and one for specular **%**
+ID3D10EffectVectorVariable* LightColoursVar = NULL;
+ID3D10EffectVectorVariable* AmbientColourVar = NULL;
+ID3D10EffectScalarVariable* SpecularPowersVar = NULL;
 
 // Miscellaneous
-ID3D10EffectVectorVariable* ModelColourVar = NULL;
+ID3D10EffectScalarVariable* WiggleVar = NULL;
 
 
 //--------------------------------------------------------------------------------------
@@ -119,7 +133,7 @@ bool InitDevice(HWND hWnd)
 	HRESULT hr = S_OK;
 
 
-	////////////////////////////////
+	////////////////////////////////a
 	// Initialise Direct3D
 
 	// Calculate the visible area the window we are using - the "client rectangle" refered to in the first function is the 
@@ -128,7 +142,6 @@ bool InitDevice(HWND hWnd)
 	GetClientRect(hWnd, &rc);
 	g_ViewportWidth = rc.right - rc.left;
 	g_ViewportHeight = rc.bottom - rc.top;
-
 
 	// Create a Direct3D device (i.e. initialise D3D), and create a swap-chain (create a back buffer to render to)
 	DXGI_SWAP_CHAIN_DESC sd;         // Structure to contain all the information needed
@@ -143,7 +156,7 @@ bool InitDevice(HWND hWnd)
 	sd.SampleDesc.Count = 1;
 	sd.SampleDesc.Quality = 0;
 	sd.OutputWindow = hWnd;                            // Target window
-	sd.Windowed = TRUE;                                // Whether to render in a window (TRUE) or go fullscreen (FALSE)
+	sd.Windowed = TRUE;                                 // Whether to render in a window (TRUE) or go fullscreen (FALSE)
 	hr = D3D10CreateDeviceAndSwapChain( NULL, D3D10_DRIVER_TYPE_HARDWARE, NULL, 0,
 										D3D10_SDK_VERSION, &sd, &SwapChain, &g_pd3dDevice );
 	if( FAILED( hr ) ) return false;
@@ -209,20 +222,25 @@ void ReleaseResources()
 	// Test each variable to see if it exists before deletion
 	if( g_pd3dDevice )     g_pd3dDevice->ClearState();
 
-	delete Light2;
-	delete Light1;
+	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
+	{
+		delete Lights[i];
+	}
+	delete AmbientLight;
+	delete Teapot;
 	delete Floor;
 	delete Cube;
+	delete WiggleSphere;
 	delete Camera;
 
-    if( FloorDiffuseMap )  FloorDiffuseMap->Release();
-    if( CubeDiffuseMap )   CubeDiffuseMap->Release();
-	if( Effect )           Effect->Release();
-	if( DepthStencilView ) DepthStencilView->Release();
-	if( RenderTargetView ) RenderTargetView->Release();
-	if( DepthStencil )     DepthStencil->Release();
-	if( SwapChain )        SwapChain->Release();
-	if( g_pd3dDevice )     g_pd3dDevice->Release();
+	delete StoneTexture;
+	delete WoodTexture;
+	if( Effect )			Effect->Release();
+	if( DepthStencilView )	DepthStencilView->Release();
+	if( RenderTargetView )	RenderTargetView->Release();
+	if( DepthStencil )		DepthStencil->Release();
+	if( SwapChain )			SwapChain->Release();
+	if( g_pd3dDevice )		g_pd3dDevice->Release();
 
 }
 
@@ -251,23 +269,32 @@ bool LoadEffectFile()
 
 	// Now we can select techniques from the compiled effect file
 	PlainColourTechnique = Effect->GetTechniqueByName( "PlainColour" );
+	DiffuseTexturedTechnique = Effect->GetTechniqueByName("DiffuseTex");
+	WiggleAndScrollTechnique = Effect->GetTechniqueByName("WiggleAndScroll");
+	PixDiffSpecTechnique = Effect->GetTechniqueByName("PixDiffSpec");
 
 	// Create special variables to allow us to access global variables in the shaders from C++
-	WorldMatrixVar    = Effect->GetVariableByName( "WorldMatrix" )->AsMatrix();
-	ViewMatrixVar     = Effect->GetVariableByName( "ViewMatrix"  )->AsMatrix();
-	ProjMatrixVar     = Effect->GetVariableByName( "ProjMatrix"  )->AsMatrix();
+	CModel::SetMatrixShaderVariable(Effect->GetVariableByName( "WorldMatrix" )->AsMatrix());
+	ViewProjMatrixVar = Effect->GetVariableByName("ViewProjMatrix")->AsMatrix();
 
 	// We access the texture variable in the shader in the same way as we have before for matrices, light data etc.
 	// Only difference is that this variable is a "Shader Resource"
-	DiffuseMapVar = Effect->GetVariableByName( "DiffuseMap" )->AsShaderResource();
+	CTexture::SetShaderVariable( Effect->GetVariableByName("DiffuseMap")->AsShaderResource());
+
+	// Lighting
+	CameraPositionVar	= Effect->GetVariableByName( "CameraPos" )->AsVector();
+
+	LightColoursVar		= Effect->GetVariableByName( "LightColours" )->AsVector();
+	LightPositionsVar	= Effect->GetVariableByName( "LightPositions" )->AsVector();
+	AmbientColourVar	= Effect->GetVariableByName( "AmbientColour" )->AsVector();
+	SpecularPowersVar	= Effect->GetVariableByName( "SpecularPowers" )->AsScalar();
 
 	// Other shader variables
-	ModelColourVar = Effect->GetVariableByName( "ModelColour"  )->AsVector();
-
+	CModel::SetColourShaderVariable(Effect->GetVariableByName( "ModelColour"  )->AsVector());
+	WiggleVar		= Effect->GetVariableByName( "Wiggle"       )->AsScalar();
+		
 	return true;
 }
-
-
 
 //--------------------------------------------------------------------------------------
 // Scene Setup / Update / Rendering
@@ -280,40 +307,86 @@ bool InitScene()
 	// Create camera
 
 	Camera = new CCamera();
-	Camera->SetPosition( D3DXVECTOR3(-15, 20,-40) );
+	Camera->SetPosition(D3DXVECTOR3(-15.0f, 20.0f, -40.0f));
 	Camera->SetRotation( D3DXVECTOR3(ToRadians(13.0f), ToRadians(18.0f), 0.0f) ); // ToRadians is a new helper function to convert degrees to radians
-
-
-	///////////////////////
-	// Load/Create models
-
-	Cube = new CModel;
-	Floor = new CModel;
-	Light1 = new CModel;
-	Light2 = new CModel;
-
-	// The model class can load ".X" files. It encapsulates (i.e. hides away from this code) the file loading/parsing and creation of vertex/index buffers
-	// We must pass an example technique used for each model. We can then only render models with techniques that uses matching vertex input data
-	if (!Cube->  Load( "Cube.x",  PlainColourTechnique )) return false;
-	if (!Floor-> Load( "Floor.x", PlainColourTechnique )) return false;
-	if (!Light1->Load( "Sphere.x", PlainColourTechnique )) return false;
-	if (!Light2->Load( "Sphere.x", PlainColourTechnique )) return false;
-
-	// Initial positions
-	Cube->SetPosition( D3DXVECTOR3(0, 10, 0) );
-	Light1->SetPosition( D3DXVECTOR3(30, 10, 0) );
-	Light1->SetScale( 0.1f ); // Nice if size of light reflects its brightness
-	Light2->SetPosition( D3DXVECTOR3(-20, 30, 50) );
-	Light2->SetScale( 0.2f );
-
 
 	//////////////////
 	// Load textures
 
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( g_pd3dDevice, L"StoneDiffuseSpecular.dds", NULL, NULL, &CubeDiffuseMap,  NULL ) ))
+	StoneTexture = new CTexture();
+	WoodTexture = new CTexture();
+
+	if (!StoneTexture->LoadTexture(TEXT("StoneDiffuseSpecular.dds")))
 		return false;
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( g_pd3dDevice, L"WoodDiffuseSpecular.dds",  NULL, NULL, &FloorDiffuseMap, NULL ) ))
+	if (!WoodTexture->LoadTexture(TEXT("WoodDiffuseSpecular.dds")))
 		return false;
+
+	///////////////////////
+	// Load/Create models
+
+	Cube =			new CModel;
+	Teapot =		new CModel;
+	Floor =			new CModel;
+	WiggleSphere =	new CModel;
+	AmbientLight =	new CAmbientLight;
+	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
+	{
+		Lights[i] = new CPositionalLight;
+	}
+
+	//**************************************
+	// Set Render Techniques and load models
+
+	// The model class can load ".X" files. It encapsulates (i.e. hides away from this code) the file loading/parsing and creation of vertex/index buffers
+	// We must pass an example technique used for each model. We can then only render models with techniques that uses matching vertex input data
+	if (!Cube->  Load(			"Cube.x",	PixDiffSpecTechnique /*DiffuseTexturedTechnique **%** */ )) return false;
+	if (!Floor-> Load(			"Floor.x",	PixDiffSpecTechnique /*DiffuseTexturedTechnique **%** */ )) return false;
+	if (!Teapot->Load(			"Teapot.x", PixDiffSpecTechnique))		return false;
+	if (!WiggleSphere->Load(	"Sphere.x", WiggleAndScrollTechnique))	return false;
+	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
+	{
+		if (!Lights[i]->LoadModel(	"Sphere.x", PlainColourTechnique ))	return false;
+	}
+
+	// Set Initial values of models/lights
+	Cube->SetPosition(D3DXVECTOR3(0.0f, 10.0f, 0.0f));
+	Cube->SetTexture(StoneTexture);
+
+	Teapot->SetPosition(D3DXVECTOR3(10.0f, 20.0f, 50.0f));
+	Teapot->SetTexture(StoneTexture);
+
+	WiggleSphere->SetPosition(D3DXVECTOR3(-40.0f, 15.0f, 20.0f));
+	WiggleSphere->SetScale(0.7f);
+	WiggleSphere->SetTexture(StoneTexture);
+
+	Floor->SetTexture(WoodTexture);
+
+	AmbientLight->SetColour(D3DXVECTOR3(0.2f, 0.2f, 0.2f));
+
+	Lights[0]->SetPosition( D3DXVECTOR3(30.0f, 10.0f, 0.0f) );
+	Lights[0]->SetScale( 0.1f ); // Nice if size of light reflects its brightness
+	Lights[0]->SetIsStationary(true);
+	Lights[0]->SetDiffuseColour(D3DXVECTOR3(1.0f, 0.0f, 0.7f));
+	Lights[0]->SetSpecularColour(D3DXVECTOR3(1.0f, 0.0f, 0.7f));
+	Lights[0]->SetSpecularPower(16.0f);
+
+	//Lights[1]->SetPosition( D3DXVECTOR3(-20.0f, 30.0f, 50.0f) );			//Original position - commented out for debug purposes - need to reset **%**
+	Lights[1]->SetPosition(D3DXVECTOR3(-100.0f, 10.0f, 100.0f));
+	Lights[1]->SetScale( 0.2f );
+	Lights[0]->SetIsStationary(false);
+	Lights[1]->SetDiffuseColour(D3DXVECTOR3(1.0f, 0.8f, 0.2f));
+	Lights[1]->SetSpecularColour(D3DXVECTOR3(1.0f, 0.8f, 0.2f));
+	Lights[1]->SetSpecularPower(16.0f);
+
+	//Update the matrices of lights that will be stationary (dont need to update them in update scene)
+	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
+	{
+		if (Lights[i]->IsStationary())
+		{
+			Lights[i]->UpdateMatrix();
+		}
+	}
+
 
 	return true;
 }
@@ -331,16 +404,36 @@ void UpdateScene( float frameTime )
 	Cube->Control( frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Period, Key_Comma );
 	Cube->UpdateMatrix();
 
+	// Teapot
+	Teapot->Control(frameTime, Key_Numpad8, Key_Numpad2, Key_Numpad4, Key_Numpad6, Key_Numpad9, Key_Numpad7, Key_Minus, Key_Plus);
+	Teapot->UpdateMatrix();
+
+	// Wiggle Sphere - doesnt have controls but does need matrix calculation
+	Wiggle += 15.0f * frameTime;
+	WiggleSphere->UpdateMatrix();
+
 	// Update the orbiting light - a bit of a cheat with the static variable [ask the tutor if you want to know what this is]
 	static float Rotate = 0.0f;
-	Light1->SetPosition( Cube->GetPosition() + D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0, sin(Rotate)*LightOrbitRadius) );
+	Lights[0]->SetPosition(Cube->GetPosition() + D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0.0f, sin(Rotate)*LightOrbitRadius));
 	Rotate -= LightOrbitSpeed * frameTime;
-	Light1->UpdateMatrix();
-
+	
+	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
+	{	//Update matrices of lights that are not stationary
+		if (!Lights[i]->IsStationary())
+		{
+			Lights[i]->UpdateMatrix();
+		}
+	}
 	// Second light doesn't move, but do need to make sure its matrix has been calculated - could do this in InitScene instead
-	Light2->UpdateMatrix();
-}
 
+	PulseTime += 2 * frameTime;
+	float cosTime = cosf(PulseTime);
+	float sinTime = sinf(PulseTime);
+	// **%** need to find a way of doing this by directly influencing thevalues of the light
+	PulsingLightColour = D3DXVECTOR3(Lights[0]->GetDiffuseColour().x * (cosTime + 1), Lights[0]->GetDiffuseColour().y * (cosTime + 1), Lights[0]->GetDiffuseColour().z * (cosTime + 1));
+	
+	ChangingLightColour = D3DXVECTOR3(Lights[1]->GetDiffuseColour().x * (cosTime + 1), Lights[1]->GetDiffuseColour().y * (sinTime + 1), Lights[1]->GetDiffuseColour().z * (cosTime + 2));
+}
 
 // Render everything in the scene
 void RenderScene()
@@ -357,8 +450,25 @@ void RenderScene()
 	// Common features for all models, set these once only
 
 	// Pass the camera's matrices to the vertex shader
-	ViewMatrixVar->SetMatrix( (float*)&Camera->GetViewMatrix() );
-	ProjMatrixVar->SetMatrix( (float*)&Camera->GetProjectionMatrix() );
+	/*ViewMatrixVar->SetMatrix( (float*)&Camera->GetViewMatrix() );
+	ProjMatrixVar->SetMatrix( (float*)&Camera->GetProjectionMatrix() ); - unneccessary - kept in incase later become neccessary again*/ 
+	ViewProjMatrixVar->SetMatrix((float*)&Camera->GetViewProjectionMatrix());
+
+	//Misc
+	WiggleVar->SetFloat(Wiggle);
+
+	//Lighting
+	D3DXVECTOR3 LightPositions[NO_OF_LIGHTS]	= { Lights[0]->GetPosition(),										Lights[1]->GetPosition() };
+	D3DXVECTOR3 LightColours[NO_OF_LIGHTS]		= { /*Lights[0]->GetDiffuseColour()*/ PulsingLightColour /***%***/,	ChangingLightColour/*Lights[1]->GetDiffuseColour()*/ };
+	float SpecularPowers[NO_OF_LIGHTS]			= { Lights[0]->GetSpecularPower(),									Lights[1]->GetSpecularPower() };
+
+	CameraPositionVar->SetRawValue(Camera->GetPosition(), 0, sizeof(D3DXVECTOR3));
+	
+	LightColoursVar->SetRawValue(LightColours, 0, sizeof(D3DXVECTOR3) * NO_OF_LIGHTS  );
+	AmbientColourVar->SetRawValue(AmbientLight->GetColour(), 0, sizeof(D3DXVECTOR3));
+	SpecularPowersVar->SetFloatArray(SpecularPowers, 0, NO_OF_LIGHTS);
+	
+	LightPositionsVar->SetRawValue(LightPositions, 0, sizeof(D3DXVECTOR3) * NO_OF_LIGHTS);	//Doesnt seem to send position of second light properly
 
 
 	//---------------------------
@@ -367,27 +477,40 @@ void RenderScene()
 	// Constant colours used for models in initial shaders
 	D3DXVECTOR3 Black( 0.0f, 0.0f, 0.0f );
 	D3DXVECTOR3 Blue( 0.0f, 0.0f, 1.0f );
+	D3DXVECTOR3 Yellow(1.0f, 1.0f, 0.0f);
 
 	// Render cube
-	WorldMatrixVar->SetMatrix( (float*)Cube->GetWorldMatrix() );  // Send the cube's world matrix to the shader
-    DiffuseMapVar->SetResource( CubeDiffuseMap );                 // Send the cube's diffuse/specular map to the shader
-	ModelColourVar->SetRawValue( Blue, 0, 12 );           // Set a single colour to render the model
-	Cube->Render( PlainColourTechnique );                         // Pass rendering technique to the model class
+	//CModel::m_MatrixVar->SetMatrix((float*)Cube->GetWorldMatrix());	// Send the cube's world matrix to the shader
+	//CTexture::m_MapVar->SetResource(StoneTexture->GetTexture());					// Send the cube's diffuse/specular map to the shader
+	//CModel::m_ColourVar->SetRawValue( Blue, 0, sizeof(D3DXVECTOR3) );	// Set a single colour to render the model
+	Cube->Render(Blue);							// Pass rendering technique to the model class
 
-	// Same for the other models in the scene
-	WorldMatrixVar->SetMatrix( (float*)Floor->GetWorldMatrix() );
-    DiffuseMapVar->SetResource( FloorDiffuseMap );
-	ModelColourVar->SetRawValue( Black, 0, 12 );
-	Floor->Render( PlainColourTechnique );
+	// Floor
+	//CModel::m_MatrixVar->SetMatrix((float*)Floor->GetWorldMatrix());		//Matrix
+	//CTexture::m_MapVar->SetResource(WoodTexture->GetTexture());						//Map
+	//CModel::m_ColourVar->SetRawValue(Black, 0, sizeof(D3DXVECTOR3));		//Colour
+	Floor->Render(Black);								//Render
 
-	WorldMatrixVar->SetMatrix( (float*)Light1->GetWorldMatrix() );
-	ModelColourVar->SetRawValue( Light1Colour, 0, 12 );
-	Light1->Render( PlainColourTechnique );
+	// Wiggling Sphere
+	//CModel::m_MatrixVar->SetMatrix((float*)WiggleSphere->GetWorldMatrix());	//Matrix
+	//CTexture::m_MapVar->SetResource(StoneTexture->GetTexture());						//Map
+	//CModel::m_ColourVar->SetRawValue(Yellow, 0, sizeof(D3DXVECTOR3));		//Colour
+	WiggleSphere->Render(Yellow);						//Render
+	
+	// Teapot
+	//CModel::m_MatrixVar->SetMatrix((float*)Teapot->GetWorldMatrix());		//Matrix
+	//CTexture::m_MapVar->SetResource(StoneTexture->GetTexture());						//Map
+	Teapot->Render();								//Render
 
-	WorldMatrixVar->SetMatrix( (float*)Light2->GetWorldMatrix() );
-	ModelColourVar->SetRawValue( Light2Colour, 0, 12 );
-	Light2->Render( PlainColourTechnique );
-
+	// Light 0
+	//CModel::m_MatrixVar->SetMatrix((float*)Lights[0]->GetWorldMatrix());			//Matrix
+	//CModel::m_ColourVar->SetRawValue(PulsingLightColour, 0, sizeof(D3DXVECTOR3));	//Colour
+	Lights[0]->Render(PulsingLightColour);									//Render
+	
+	// Light 1
+	//CModel::m_MatrixVar->SetMatrix((float*)Lights[1]->GetWorldMatrix());			//Matrix
+	//CModel::m_ColourVar->SetRawValue(ChangingLightColour, 0, sizeof(D3DXVECTOR3));				//Colour
+	Lights[1]->Render(ChangingLightColour);									//Render
 
 	//---------------------------
 	// Display the Scene

@@ -14,7 +14,7 @@ using namespace std;
 #include <d3d10.h>
 #include <d3dx10.h>
 #include "Input.h"
-
+#include "Texture.h"
 
 class CModel
 {
@@ -54,9 +54,28 @@ private:
 	unsigned int             m_NumIndices;
 
 
+	//---------------
+	// Render data
+
+	//The render technique for this model
+	ID3D10EffectTechnique* m_RenderTechnique;
+	//Pointer to texture
+	CTexture* m_ModelTexture;
+
+	//--------------
+	// Render effect variables
+	
+	//Effect variable to pass matrix to shader
+	static ID3D10EffectMatrixVariable* m_MatrixVar;
+	//Effect variable to pass colour to shader
+	static ID3D10EffectVectorVariable* m_ColourVar;
+
 /////////////////////////////
 // Public member functions
 public:
+
+	static void SetMatrixShaderVariable(ID3D10EffectMatrixVariable* matrixVar);
+	static void SetColourShaderVariable(ID3D10EffectVectorVariable* colourVar);
 
 	///////////////////////////////
 	// Constructors / Destructors
@@ -111,7 +130,10 @@ public:
 	{
 		m_Scale = D3DXVECTOR3( scale, scale, scale );
 	}
-
+	void SetTexture(CTexture* texture)
+	{
+		m_ModelTexture = texture;
+	}
 
 	/////////////////////////////
 	// Model Loading
@@ -134,7 +156,7 @@ public:
 				  EKeyCode turnCW, EKeyCode turnCCW, EKeyCode moveForward, EKeyCode moveBackward );
 
 	// Render the model with the given technique. Assumes any shader variables for the technique have already been set up (e.g. matrices and textures)
-	void Render( ID3D10EffectTechnique* technique );
+	void Render(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));
 };
 
 

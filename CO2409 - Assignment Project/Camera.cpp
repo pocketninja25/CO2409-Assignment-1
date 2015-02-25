@@ -53,7 +53,7 @@ void CCamera::UpdateMatrices()
 
 // Control the camera's position and rotation using keys provided. Amount of motion performed depends on frame time
 void CCamera::Control( float frameTime, EKeyCode turnUp, EKeyCode turnDown, EKeyCode turnLeft, EKeyCode turnRight,  
-                       EKeyCode moveForward, EKeyCode moveBackward, EKeyCode moveLeft, EKeyCode moveRight)
+					   EKeyCode moveForward, EKeyCode moveBackward, EKeyCode moveLeft, EKeyCode moveRight)
 {
 	if (KeyHeld( turnDown ))
 	{
