@@ -212,7 +212,9 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AmbientLight.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="ColourConversion.h" />
     <ClInclude Include="CTimer.h" />
     <ClInclude Include="Defines.h" />
     <ClInclude Include="Import\CImportXFile.h" />
@@ -235,13 +237,15 @@
     <ClInclude Include="Import\Math\MathIO.h" />
     <ClInclude Include="Import\MeshData.h" />
     <ClInclude Include="Input.h" />
-    <ClInclude Include="Light.h" />
+    <ClInclude Include="PositionalLight.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Texture.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AmbientLight.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="ColourConversions.cpp" />
     <ClCompile Include="CTimer.cpp" />
     <ClCompile Include="Import\CImportXFile.cpp" />
     <ClCompile Include="Import\Common\CFatalException.cpp" />
@@ -257,7 +261,7 @@
     <ClCompile Include="Import\Math\CVector3.cpp" />
     <ClCompile Include="Import\Math\CVector4.cpp" />
     <ClCompile Include="Import\Math\MathIO.cpp" />
-    <ClCompile Include="Light.cpp" />
+    <ClCompile Include="PositionalLight.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="GraphicsAssign1.cpp" />

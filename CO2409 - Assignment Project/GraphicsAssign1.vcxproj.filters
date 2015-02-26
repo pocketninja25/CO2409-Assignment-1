@@ -53,8 +53,10 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="Light.cpp" />
     <ClCompile Include="Texture.cpp" />
+    <ClCompile Include="AmbientLight.cpp" />
+    <ClCompile Include="PositionalLight.cpp" />
+    <ClCompile Include="ColourConversions.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource.h">
@@ -126,8 +128,10 @@
     <ClInclude Include="Import\Common\GenDefines.h">
       <Filter>Import\Common</Filter>
     </ClInclude>
-    <ClInclude Include="Light.h" />
     <ClInclude Include="Texture.h" />
+    <ClInclude Include="AmbientLight.h" />
+    <ClInclude Include="PositionalLight.h" />
+    <ClInclude Include="ColourConversion.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="GraphicsAssign1.fx" />

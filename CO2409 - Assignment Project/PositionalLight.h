@@ -1,20 +1,14 @@
 //--------------------------------------------------------------------------------------
-//	Light.h
+//	PositionalLight.h
 //
 //	The light class collects together a lights's model data and colour/specular power
 //	values
 //--------------------------------------------------------------------------------------
 
-#ifndef LIGHT_H_INCLUDED // Header guard - prevents file being included more than once (would cause errors)
-#define LIGHT_H_INCLUDED
+#ifndef POSITIONAL_LIGHT_H_INCLUDED // Header guard - prevents file being included more than once (would cause errors)
+#define POSITIONAL_LIGHT_H_INCLUDED
 
-//Ambient light
-//Point light
-//Spot light
-//Directional light
 #include "Defines.h"
-
-	//float m_SpecularPower;
 
 #include "Model.h"
 
@@ -27,7 +21,15 @@ private:
 	float m_SpecularPower;
 	bool m_IsStationary;
 
+	ID3D10EffectVectorVariable* m_ColourVar;
+	ID3D10EffectVectorVariable* m_PositionVar;
+	ID3D10EffectScalarVariable* m_SpecularPowerVar;
+
 public:
+	void SetColourVar(ID3D10EffectVectorVariable* colourVar);
+	void SetPositionVar(ID3D10EffectVectorVariable* positionVar);
+	void SetSpecularPowerVar(ID3D10EffectScalarVariable* specularPowerVar);
+
 	CPositionalLight(D3DXVECTOR3 diffuseColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f), D3DXVECTOR3 specularColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f), 
 		D3DXVECTOR3 position = D3DXVECTOR3(0.0f, 0.0f, 0.0f), float scale = 0.0f, bool isStationary = false, float specularPower = 0.0f);
 	~CPositionalLight();
@@ -93,33 +95,9 @@ public:
 
 	void UpdateMatrix();								//Call model update matrix
 
-	void Render(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		//Call model render
-};
 
-//************************************************
-// CAmbientLight
-//************************************************
-
-class CAmbientLight
-{
-private:
-	D3DXVECTOR3 m_Colour;
-
-public:
-	CAmbientLight(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));
-
-	// Getters
-
-	D3DXVECTOR3 GetColour()
-	{
-		return m_Colour;
-	}
-
-	// Setters
-	void SetColour(D3DXVECTOR3 colour)
-	{
-		m_Colour = colour;
-	}
+	void LightRender(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		
+	void ModelRender(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		//Call model render
 };
 
 #endif

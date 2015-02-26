@@ -54,6 +54,13 @@ struct VS_NORMALMAP_OUTPUT
 	float2 UV           : TEXCOORD0;
 };
 
+struct LIGHT_DATA
+{
+	float3 colour;
+	float3 position;
+	float specularPower;
+};
+
 //--------------------------------------------------------------------------------------
 // Global Variables
 //--------------------------------------------------------------------------------------
@@ -71,14 +78,23 @@ float3 ModelColour;
 
 // Diffuse texture map (the main texture colour) - may contain specular map in alpha channel
 Texture2D DiffuseMap;
+// Normal map
+Texture2D NormalMap;
 
 //Lighting Data
 float3 CameraPos;
 
 static const unsigned int NO_OF_LIGHTS = 2;	
-float3 LightColours[NO_OF_LIGHTS];
-float3 LightPositions[NO_OF_LIGHTS];
-float SpecularPowers[NO_OF_LIGHTS];
+//float3 LightColours[NO_OF_LIGHTS];
+//float3 LightPositions[NO_OF_LIGHTS];
+//float SpecularPowers[NO_OF_LIGHTS];
+float3 Light1Colour;
+float3 Light2Colour;
+float3 Light1Position;
+float3 Light2Position;
+float  Light1SpecularPower;
+float  Light2SpecularPower;
+
 float3 AmbientColour;
 
 //--------------------------------------------------------------------------------------
@@ -196,13 +212,23 @@ float4 ScrollAndTint(VS_BASIC_OUTPUT vOut) : SV_Target
 
 float4 DiffuseSpecular(VS_LIGHTING_OUTPUT vOut) : SV_Target
 {
+	//Initialise Lighting Array
+	LIGHT_DATA Lights[NO_OF_LIGHTS];
+	Lights[0].colour = Light1Colour;
+	Lights[0].position = Light1Position;
+	Lights[0].specularPower = Light1SpecularPower;
+	Lights[1].colour = Light2Colour;
+	Lights[1].position = Light2Position;
+	Lights[1].specularPower = Light2SpecularPower;
+	
 	//*********************************************************************************************
 	// Calculate direction of light and camera
 	float3 CameraDir = normalize(CameraPos - vOut.WorldPos.xyz); // Position of camera - position of current pixel (in world space)
 	
 	float3 LightDirs[NO_OF_LIGHTS];
 	float3 AttenuatedLights[NO_OF_LIGHTS];
-	
+	float3 LightDist[NO_OF_LIGHTS];
+
 	float3 diffuseLight = AmbientColour;	//Begin with just ambient light
 	
 	float3 halfwayNormal = 0.0f;
@@ -210,16 +236,18 @@ float4 DiffuseSpecular(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	
 	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)	//Perform calculations on lights, one light at a time
 	{
-		LightDirs[i] = LightPositions[i] - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate attenuated light first)
-		AttenuatedLights[i] = /*10.0f **/ (LightColours[i] / length(LightDirs[i]));	//Calculate Light attenuation				//Light is multiplied by 10 so that specular light can be seen properly **%**
+		LightDirs[i] = Lights[i].position - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate attenuated light first)
+		LightDist[i] = length(LightDirs[i]);
+		//AttenuatedLights[i] = (Lights[i].colour / length(LightDirs[i]));	//Calculate Light attenuation
 		LightDirs[i] = normalize(LightDirs[i]); //Can now normalise
 		//Calculate Diffuse Light
-		diffuseLight += LightColours[i] * max(dot(vOut.WorldNormal.xyz, LightDirs[i]), 0.0f);	//Add each light's diffuse value one at a time
+		diffuseLight += (Lights[i].colour * max(dot(vOut.WorldNormal.xyz, LightDirs[i]), 0.0f) / LightDist[i]);	//Add each light's diffuse value one at a time
 		//Calculate specular light
 		halfwayNormal = normalize(LightDirs[i] + CameraDir);	//Calculate halfway normal for this ligh
-		specularLight += AttenuatedLights[i] * pow(max(dot(vOut.WorldNormal.xyz, halfwayNormal), 0.0f), SpecularPowers[i]);	//Add Specular light for this light onto the current total 
+		specularLight += (Lights[i].colour * pow(max(dot(vOut.WorldNormal.xyz, halfwayNormal), 0.0f), Lights[i].specularPower) / LightDist[i]);	//Add Specular light for this light onto the current total 
 
 	}
+	
 
 	//diffuseLight = 0.0f;	//Set Diffuse to 0 (DEBUGGING ONLY)
 	//specularLight = 0.0f; //Set Specular to 0 (DEBUGGING ONLY)
@@ -230,9 +258,8 @@ float4 DiffuseSpecular(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	// Extract diffuse material colour for this pixel from a texture (using float3, so we get RGB - i.e. ignore any alpha in the texture)
 	float3 DiffuseMaterial = DiffuseMap.Sample(TrilinearWrap, vOut.UV).rgb;
 
-	// Assume specular material colour is white (i.e. highlights are a full, untinted reflection of light)
+	// Sample specular material colour from alpha channel of the diffusemap
 	float SpecularMaterial = DiffuseMap.Sample(TrilinearWrap, vOut.UV).a;
-
 	//*********************************************************************************************
 	// Combine colours (lighting, textures) for final pixel colour
 

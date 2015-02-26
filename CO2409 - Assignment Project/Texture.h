@@ -6,23 +6,31 @@
 class CTexture
 {
 public:
-	CTexture(ID3D10ShaderResourceView* map = NULL);
+	CTexture(ID3D10ShaderResourceView* diffSpecMap = NULL, ID3D10ShaderResourceView* normalMap = NULL);
 	~CTexture();
 
-	bool LoadTexture(wchar_t* textureName);
+	bool LoadDiffSpecMap(wchar_t* mapName);
+
+	bool LoadNormalMap(wchar_t* mapName);
 
 	void Release();
 
-	ID3D10ShaderResourceView* GetTexture();
+	ID3D10ShaderResourceView* GetDiffSpecMap();
+
+	ID3D10ShaderResourceView* GetNormalMap();
 
 	void SendToShader();
 	
-	static void SetShaderVariable(ID3D10EffectShaderResourceVariable* mapVar);
+	static void SetDiffuseSpecularShaderVariable(ID3D10EffectShaderResourceVariable* mapVar);
+
+	static void SetNormalMapShaderVariable(ID3D10EffectShaderResourceVariable* mapVar);
 
 private:
-	ID3D10ShaderResourceView* m_Map;
+	ID3D10ShaderResourceView* m_DiffSpecMap;
+	ID3D10ShaderResourceView* m_NormalMap;
 
-	static ID3D10EffectShaderResourceVariable* m_MapVar;	//Pointer to the shader variable to pass the m_Map to the shader
+	static ID3D10EffectShaderResourceVariable* m_DiffSpecMapVar;	//Pointer to the shader variable to pass the m_DiffSpecMap to the shader
+	static ID3D10EffectShaderResourceVariable* m_NormalMapVar;		//Pointer to the shader variable to pass the m_NormalMap to the shader
 };
 
 #endif
