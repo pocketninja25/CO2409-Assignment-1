@@ -27,7 +27,7 @@ CPositionalLight::~CPositionalLight()
 {
 }
 
-bool CPositionalLight::LoadModel(const string& fileName, ID3D10EffectTechnique* shaderCode, bool tangents)
+bool CPositionalLight::LoadModel(const string& fileName, CTechnique* shaderCode, bool tangents)
 {
 	return m_Model.Load(fileName, shaderCode, tangents);
 }

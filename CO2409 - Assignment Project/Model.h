@@ -15,6 +15,7 @@ using namespace std;
 #include <d3dx10.h>
 #include "Input.h"
 #include "Texture.h"
+#include "Technique.h"
 
 #include <vector>
 
@@ -60,7 +61,7 @@ private:
 	// Render data
 
 	//The render technique for this model
-	ID3D10EffectTechnique* m_RenderTechnique;
+	CTechnique* m_RenderTechnique;
 	//Pointer to texture
 	CTexture* m_ModelTexture;
 
@@ -78,10 +79,14 @@ private:
 
 	D3DXVECTOR3 m_Colour;
 
+	unsigned int m_CurrentTextureIndex;
+	unsigned int m_CurrentTechniqueIndex;
+
 /////////////////////////////
 // Public member functions
 public:
 	static vector<CTexture*> m_TextureList;
+	static vector<CTechnique*> m_TechniqueList;
 
 	static void SetMatrixShaderVariable(ID3D10EffectMatrixVariable* matrixVar);
 	static void SetColourShaderVariable(ID3D10EffectVectorVariable* colourVar);
@@ -142,9 +147,14 @@ public:
 	{
 		m_ModelTexture = texture;
 	}
-	void SetRenderTechnique(ID3D10EffectTechnique* renderTechnique)
+	bool SetRenderTechnique(CTechnique* renderTechnique)
 	{
-		Load(m_FileName, renderTechnique, UseTangents());
+		if (renderTechnique->IsCompatible(m_ModelTexture))	//First check that the new technique and this models texture are compatible
+		{
+			return Load(m_FileName, renderTechnique, UseTangents());
+		}
+		// Have not returned yet must have failed the if statement
+		return false;
 	}
 	void SetColour(D3DXVECTOR3 colour)
 	{
@@ -158,7 +168,7 @@ public:
 	// models will load but will have parts missing. May optionally request for tangents to be created for the model (for normal or parallax mapping)
 	// We need to pass an example technique that the model will use to help DirectX understand how to connect this data with the vertex shaders
 	// Returns true if the load was successful
-	bool Load( const string& fileName, ID3D10EffectTechnique* shaderCode, bool tangents = false );
+	bool Load( const string& fileName, CTechnique* shaderCode, bool tangents = false );
 
 
 	/////////////////////////////

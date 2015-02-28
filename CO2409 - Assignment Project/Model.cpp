@@ -5,8 +5,9 @@
 //	also manages it's positioning with a world matrix
 //--------------------------------------------------------------------------------------
 
-#include "Defines.h" // General definitions shared by all source files
-#include "Model.h"   // Declaration of this class
+#include "Defines.h"	// General definitions shared by all source files
+#include "Model.h"		// Declaration of this class
+#include "Technique.h"
 
 #include "CImportXFile.h"    // Class to load meshes (taken from a full graphics engine)
 
@@ -15,7 +16,10 @@ ID3D10EffectMatrixVariable* CModel::m_MatrixVar = NULL;
 
 ID3D10EffectVectorVariable* CModel::m_ColourVar = NULL;
 
-vector<CTexture*> CModel::m_TextureList = vector<CTexture*>();
+vector<CTexture*>			CModel::m_TextureList = vector<CTexture*>();
+vector<CTechnique*>			CModel::m_TechniqueList= vector<CTechnique*>();
+
+
 
 void CModel::SetMatrixShaderVariable(ID3D10EffectMatrixVariable* matrixVar)
 {
@@ -55,6 +59,9 @@ CModel::CModel( D3DXVECTOR3 position, D3DXVECTOR3 rotation, float scale, D3DXVEC
 	m_ModelTexture = NULL;
 
 	m_Colour = colour;
+
+	m_CurrentTechniqueIndex = 0;
+	m_CurrentTextureIndex = 0;
 }
 
 // Model destructor
@@ -84,7 +91,7 @@ void CModel::ReleaseResources()
 // models will load but will have parts missing. May optionally request for tangents to be created for the model (for normal or parallax mapping)
 // We need to pass an example technique that the model will use to help DirectX understand how to connect this data with the vertex shaders
 // Returns true if the load was successful
-bool CModel::Load( const string& fileName, ID3D10EffectTechnique* exampleTechnique, bool tangents /*= false*/ ) // The commented out bit is the default parameter (can't write it here, only in the declaration)
+bool CModel::Load( const string& fileName, CTechnique* exampleTechnique, bool tangents /*= false*/ ) // The commented out bit is the default parameter (can't write it here, only in the declaration)
 {
 	// Release any existing geometry in this object
 	ReleaseResources();
@@ -174,7 +181,7 @@ bool CModel::Load( const string& fileName, ID3D10EffectTechnique* exampleTechniq
 	// Given the vertex element list, pass it to DirectX to create a vertex layout. We also need to pass an example of a technique that will
 	// render this model. We will only be able to render this model with techniques that have the same vertex input as the example we use here
 	D3D10_PASS_DESC PassDesc;
-	exampleTechnique->GetPassByIndex( 0 )->GetDesc( &PassDesc );
+	exampleTechnique->GetTechnique()->GetPassByIndex( 0 )->GetDesc( &PassDesc );
 	g_pd3dDevice->CreateInputLayout( m_VertexElts, numElts, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, &m_VertexLayout );
 
 
@@ -223,7 +230,7 @@ bool CModel::Load( const string& fileName, ID3D10EffectTechnique* exampleTechniq
 // Check if the models texture supports normals (and therefore needs tangents)
 bool CModel::UseTangents()
 {
-	return m_ModelTexture->UseNormals();
+	return m_ModelTexture->HasNormals();
 }
 
 // Update the world matrix of the model from its position, rotation and scaling
@@ -321,10 +328,10 @@ void CModel::Render()
 	// Render the model. All the data and shader variables are prepared, now select the technique to use and draw.
 	// The loop is for advanced techniques that need multiple passes - we will only use techniques with one pass
 	D3D10_TECHNIQUE_DESC techDesc;
-	m_RenderTechnique->GetDesc(&techDesc);
+	m_RenderTechnique->GetTechnique()->GetDesc(&techDesc);
 	for( UINT p = 0; p < techDesc.Passes; ++p )
 	{
-		m_RenderTechnique->GetPassByIndex(p)->Apply(0);
+		m_RenderTechnique->GetTechnique()->GetPassByIndex(p)->Apply(0);
 		g_pd3dDevice->DrawIndexed( m_NumIndices, 0, 0 );
 	}
 	g_pd3dDevice->DrawIndexed( m_NumIndices, 0, 0 );

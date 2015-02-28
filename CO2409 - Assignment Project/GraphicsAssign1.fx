@@ -68,6 +68,8 @@ struct LIGHT_DATA
 
 // The matrices (4x4 matrix of floats) for transforming from 3D model to 2D projection (used in vertex shader)
 float4x4 WorldMatrix;
+float4x4 ViewMatrix;
+float4x4 ProjMatrix;
 float4x4 ViewProjMatrix;
 
 // Misc
@@ -83,13 +85,15 @@ Texture2D NormalMap;
 
 float ParallaxDepth;
 
+//Gradient for clamping Cel shading colours
+Texture2D CelGradient;
+float OutlineThickness;
+
 //Lighting Data
 float3 CameraPos;
 
 static const unsigned int NO_OF_LIGHTS = 2;	
-//float3 LightColours[NO_OF_LIGHTS];
-//float3 LightPositions[NO_OF_LIGHTS];
-//float SpecularPowers[NO_OF_LIGHTS];
+
 float3 Light1Colour;
 float3 Light2Colour;
 float3 Light1Position;
@@ -116,6 +120,13 @@ SamplerState TrilinearWrap
 	Filter = MIN_MAG_MIP_LINEAR;
 	AddressU = Wrap;
 	AddressV = Wrap;
+};
+
+SamplerState PointSampleClamp
+{
+	Filter = MIN_MAG_MIP_POINT;
+	AddressU = Clamp;
+	AddressV = Clamp;
 };
 
 //--------------------------------------------------------------------------------------
@@ -166,19 +177,18 @@ VS_BASIC_OUTPUT WiggleTransform(VS_BASIC_INPUT vIn)
 	return vOut;
 }
 
-VS_LIGHTING_OUTPUT PixelDiffSpecTransform(VS_BASIC_INPUT vIn)
+VS_LIGHTING_OUTPUT PixelLightingTransform(VS_BASIC_INPUT vIn)
 {
 	VS_LIGHTING_OUTPUT vOut;
 
 	float4 modelPos = float4(vIn.Pos, 1.0f); 
 	float4 worldPos = mul(modelPos, WorldMatrix);
-	vOut.WorldPos = (float3)worldPos;
+	vOut.WorldPos = worldPos.xyz;
 
 	vOut.ProjPos = mul(worldPos, ViewProjMatrix);
 
 	float4 modelNormal = float4(vIn.Normal, 0.0f);
-	float4 worldNormal = mul(modelNormal, WorldMatrix);
-	vOut.WorldNormal = (float3)normalize(worldNormal);
+	vOut.WorldNormal = normalize(mul(modelNormal, WorldMatrix)).xyz;
 
 	vOut.UV = vIn.UV;
 	return vOut;
@@ -202,6 +212,34 @@ VS_NORMALMAP_OUTPUT NormalMapTransform(VS_NORMALMAP_INPUT vIn)
 
 	// Pass texture coordinates (UVs) on to the pixel shader, the vertex shader doesn't need them
 	vOut.UV = vIn.UV;
+
+	return vOut;
+}
+
+VS_BASIC_OUTPUT ExpandOutline(VS_BASIC_INPUT vIn)
+{
+	VS_BASIC_OUTPUT vOut;
+
+	// Transform model-space vertex position to world-space
+	float4 modelPos = float4(vIn.Pos, 1.0f); // Promote to 1x4 so we can multiply by 4x4 matrix, put 1.0 in 4th element for a point (0.0 for a vector)
+	float4 worldPos = mul(modelPos, WorldMatrix);
+
+	// Next the usual transform from world space to camera space - but we don't go any further here - this will be used to help expand the outline
+	// The result "viewPos" is the xyz position of the vertex as seen from the camera. The z component is the distance from the camera - that's useful...
+	float4 viewPos = mul(worldPos, ViewMatrix);
+
+	// Transform model normal to world space, using the normal to expand the geometry, not for lighting
+	float4 modelNormal = float4(vIn.Normal, 0.0f); // Set 4th element to 0.0 this time as normals are vectors
+	float4 worldNormal = normalize(mul(modelNormal, WorldMatrix)); // Normalise in case of world matrix scaling
+
+	// Expand the vertex outwards
+	// World position is modified (use a general Thickness, modify it by the square root of the distance to the camera then scale the normal by that value 
+	// this makes the new world position of the dark version bigger than the 'main version' of the model
+	worldPos += OutlineThickness * sqrt(viewPos.z) * worldNormal;
+
+	// Transform new expanded world-space vertex position to viewport-space and output
+	viewPos = mul(worldPos, ViewMatrix);
+	vOut.ProjPos = mul(viewPos, ProjMatrix);
 
 	return vOut;
 }
@@ -250,7 +288,6 @@ float4 DiffuseSpecular(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	float3 CameraDir = normalize(CameraPos - vOut.WorldPos.xyz); // Position of camera - position of current pixel (in world space)
 	
 	float3 LightDirs[NO_OF_LIGHTS];
-	float3 AttenuatedLights[NO_OF_LIGHTS];
 	float3 LightDist[NO_OF_LIGHTS];
 
 	float3 diffuseLight = AmbientColour;	//Begin with just ambient light
@@ -260,15 +297,15 @@ float4 DiffuseSpecular(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	
 	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)	//Perform calculations on lights, one light at a time
 	{
-		LightDirs[i] = Lights[i].position - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate attenuated light first)
+		LightDirs[i] = Lights[i].position - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate length for attenuated light first)
 		LightDist[i] = length(LightDirs[i]);
-		//AttenuatedLights[i] = (Lights[i].colour / length(LightDirs[i]));	//Calculate Light attenuation
 		LightDirs[i] = normalize(LightDirs[i]); //Can now normalise
+
 		//Calculate Diffuse Light
-		diffuseLight += (Lights[i].colour * saturate(dot(vOut.WorldNormal.xyz, LightDirs[i])) / LightDist[i]);	//Add each light's diffuse value one at a time
+		diffuseLight += Lights[i].colour * saturate(dot(vOut.WorldNormal.xyz, LightDirs[i])) / LightDist[i];	//Add each light's diffuse value one at a time
 		//Calculate specular light
 		halfwayNormal = normalize(LightDirs[i] + CameraDir);	//Calculate halfway normal for this ligh
-		specularLight += (Lights[i].colour / LightDist[i]) * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), Lights[i].specularPower);	//Add Specular light for this light onto the current total 
+		specularLight += Lights[i].colour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), Lights[i].specularPower) / LightDist[i];	//Add Specular light for this light onto the current total 
 
 	}
 	
@@ -395,6 +432,82 @@ float4 ParallaxMapLighting(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 	return DiffuseSpecular(diffSpecOut);	//Return the value given by the DiffuseSpecular pixel shader
 }
 
+float4 VertexLitDiffuseMap(VS_LIGHTING_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit just indicates that the returned float4 colour goes to the render target (i.e. it's a colour to render)
+{
+	// Can't guarantee the normals are length 1, interpolation from vertex shader to pixel shader will rescale normals
+	float3 worldNormal = normalize(vOut.WorldNormal);
+
+	//Initialise Lighting Array
+	LIGHT_DATA Lights[NO_OF_LIGHTS];
+	Lights[0].colour = Light1Colour;
+	Lights[0].position = Light1Position;
+	Lights[0].specularPower = Light1SpecularPower;
+	Lights[1].colour = Light2Colour;
+	Lights[1].position = Light2Position;
+	Lights[1].specularPower = Light2SpecularPower;
+
+	//*********************************************************************************************
+	// Calculate direction of light and camera
+	float3 CameraDir = normalize(CameraPos - vOut.WorldPos.xyz); // Position of camera - position of current pixel (in world space)
+
+	float3 LightDirs[NO_OF_LIGHTS];
+	float3 LightDist[NO_OF_LIGHTS];
+
+	float3 DiffuseLights[NO_OF_LIGHTS];
+
+	float3 combinedDiffuse = AmbientColour;	//Begin with just ambient light
+
+	float3 halfwayNormal = 0.0f;
+	float3 specularLight = 0.0f;
+
+	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)	//Perform calculations on lights, one light at a time
+	{
+		LightDirs[i] = Lights[i].position - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate length for attenuated light first)
+		LightDist[i] = length(LightDirs[i]);
+		LightDirs[i] = normalize(LightDirs[i]); //Can now normalise
+		
+		//Calculate Diffuse Light
+		DiffuseLights[i] = Lights[i].colour *																//Take the light colour and multiply it by
+			CelGradient.Sample(PointSampleClamp, saturate(dot(vOut.WorldNormal.xyz, LightDirs[i]))).r		//the light level for this point (clamped based on the Celgradient texture)
+			/ LightDist[i];																					//Divided by the distance of the light (for attenuation)
+		
+		//Calculate specular light
+		halfwayNormal = normalize(LightDirs[i] + CameraDir);	//Calculate halfway normal for this light
+				
+		//specularLight += Lights[i].colour * CelGradient.Sample(PointSampleClamp, pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), Lights[i].specularPower)).r / LightDist[i];	//Add Specular light for this light onto the current total 
+
+		specularLight += 30.0f * DiffuseLights[i] * 
+			CelGradient.Sample(PointSampleClamp, Lights[i].colour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), Lights[i].specularPower)).r / LightDist[i];	//Add Specular light for this light onto the current total 
+
+	}
+	
+	for (int i = 0; i < NO_OF_LIGHTS; i++)
+	{
+		combinedDiffuse += DiffuseLights[i];
+	}
+
+
+	////////////////////
+	// Sample texture
+
+	// Extract diffuse material colour for this pixel from a texture (using float3, so we get RGB - i.e. ignore any alpha in the texture)
+	float4 DiffuseMaterial = DiffuseMap.Sample(TrilinearWrap, vOut.UV);
+
+	// Assume specular material colour is white (i.e. highlights are a full, untinted reflection of light)
+	float3 SpecularMaterial = DiffuseMaterial.a;
+
+
+	////////////////////
+	// Combine colours 
+
+	// Combine maps and lighting for final pixel colour
+	float4 combinedColour;
+	combinedColour.rgb = DiffuseMaterial * combinedDiffuse + SpecularMaterial * specularLight;
+	combinedColour.a = 1.0f; // No alpha processing in this shader, so just set it to 1
+
+	return combinedColour;
+}
+
 //-------------------------------------------------------------------------------------
 // Rasteriser States
 //-------------------------------------------------------------------------------------
@@ -494,7 +607,7 @@ technique10 PixDiffSpec
 {
 	pass P0
 	{
-		SetVertexShader(CompileShader(vs_4_0, PixelDiffSpecTransform()));
+		SetVertexShader(CompileShader(vs_4_0, PixelLightingTransform()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_4_0, DiffuseSpecular()));
 
@@ -530,5 +643,31 @@ technique10 ParallaxMapping
 		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
 		SetRasterizerState(CullBack);
 		SetDepthStencilState(DepthWritesOn, 0);
+	}
+}
+
+technique10 CelShading
+{
+	pass P0		//Draw the darkened outline of the 'Cel shading'
+	{
+		SetVertexShader(CompileShader(vs_4_0, ExpandOutline()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, OneColour()));
+
+		// Draw the inside of the model
+		SetRasterizerState(CullFront);
+
+		// Switch off other blending states
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetDepthStencilState(DepthWritesOn, 0);
+	}
+	pass P1		//Draw the model itself - with a colour range clamp
+	{
+		SetVertexShader(CompileShader(vs_4_0, PixelLightingTransform()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, VertexLitDiffuseMap()));
+
+		// Return to standard culling (draw only the outside of the model)
+		SetRasterizerState(CullBack);
 	}
 }

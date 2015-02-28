@@ -57,6 +57,7 @@
     <ClCompile Include="AmbientLight.cpp" />
     <ClCompile Include="PositionalLight.cpp" />
     <ClCompile Include="ColourConversions.cpp" />
+    <ClCompile Include="Technique.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource.h">
@@ -132,6 +133,7 @@
     <ClInclude Include="AmbientLight.h" />
     <ClInclude Include="PositionalLight.h" />
     <ClInclude Include="ColourConversion.h" />
+    <ClInclude Include="Technique.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="GraphicsAssign1.fx" />

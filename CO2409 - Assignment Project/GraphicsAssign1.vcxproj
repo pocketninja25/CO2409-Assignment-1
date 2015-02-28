@@ -240,6 +240,7 @@
     <ClInclude Include="PositionalLight.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="Technique.h" />
     <ClInclude Include="Texture.h" />
   </ItemGroup>
   <ItemGroup>
@@ -266,6 +267,7 @@
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="GraphicsAssign1.cpp" />
     <ClCompile Include="Input.cpp" />
+    <ClCompile Include="Technique.cpp" />
     <ClCompile Include="Texture.cpp" />
   </ItemGroup>
   <ItemGroup>

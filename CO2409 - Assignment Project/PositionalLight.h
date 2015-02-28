@@ -11,6 +11,7 @@
 #include "Defines.h"
 
 #include "Model.h"
+#include "Technique.h"
 
 class CPositionalLight
 {
@@ -91,7 +92,7 @@ public:
 	}
 
 	// Other
-	bool LoadModel(const string& fileName, ID3D10EffectTechnique* shaderCode, bool tangents = false);
+	bool LoadModel(const string& fileName, CTechnique* shaderCode, bool tangents = false);
 
 	void UpdateMatrix();								//Call model update matrix
 
