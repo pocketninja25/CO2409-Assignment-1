@@ -2,11 +2,13 @@
 
 ID3D10EffectShaderResourceVariable* CTexture::m_DiffSpecMapVar = NULL;
 ID3D10EffectShaderResourceVariable* CTexture::m_NormalMapVar = NULL;
+ID3D10EffectScalarVariable*			CTexture::m_ParallaxDepthVar = NULL;
 
-CTexture::CTexture(ID3D10ShaderResourceView* diffSpecMap, ID3D10ShaderResourceView* normalMap)
+CTexture::CTexture(ID3D10ShaderResourceView* diffSpecMap, ID3D10ShaderResourceView* normalMap, float parallaxDepth)
 {
 	m_DiffSpecMap = diffSpecMap;
 	m_NormalMap = normalMap;
+	m_ParallaxDepth = parallaxDepth;
 }
 
 
@@ -25,6 +27,16 @@ bool CTexture::LoadNormalMap(wchar_t* mapName)
 	return !FAILED(D3DX10CreateShaderResourceViewFromFile(g_pd3dDevice, mapName, NULL, NULL, &m_NormalMap, NULL));
 }
 
+void CTexture::SetParallaxDepth(float parallaxDepth)
+{
+	m_ParallaxDepth = parallaxDepth;
+}
+
+bool CTexture::UseNormals()
+{
+	return m_NormalMap;
+}
+
 void CTexture::Release()
 {
 	if (m_DiffSpecMap)
@@ -35,8 +47,9 @@ void CTexture::Release()
 	if (m_NormalMap)
 	{
 		m_NormalMap->Release();
-		m_DiffSpecMap = NULL;
+		m_NormalMap = NULL;
 	}
+	
 }
 
 ID3D10ShaderResourceView* CTexture::GetDiffSpecMap()
@@ -59,6 +72,10 @@ void CTexture::SendToShader()
 	{
 		m_NormalMapVar->SetResource(m_NormalMap);
 	}
+	if (m_ParallaxDepthVar)
+	{
+		m_ParallaxDepthVar->SetFloat(m_ParallaxDepth);
+	}
 }
 
 void CTexture::SetDiffuseSpecularShaderVariable(ID3D10EffectShaderResourceVariable* mapVar)
@@ -69,4 +86,9 @@ void CTexture::SetDiffuseSpecularShaderVariable(ID3D10EffectShaderResourceVariab
 void CTexture::SetNormalMapShaderVariable(ID3D10EffectShaderResourceVariable* mapVar)
 {
 	m_NormalMapVar = mapVar;
+}
+
+void CTexture::SetParallaxDepthShaderVariable(ID3D10EffectScalarVariable* parallaxDepthVar)
+{
+	m_ParallaxDepthVar = parallaxDepthVar;
 }

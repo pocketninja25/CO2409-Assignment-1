@@ -78,8 +78,10 @@ float3 ModelColour;
 
 // Diffuse texture map (the main texture colour) - may contain specular map in alpha channel
 Texture2D DiffuseMap;
-// Normal map
+// Normal map - may contain parralax map in alpha channel
 Texture2D NormalMap;
+
+float ParallaxDepth;
 
 //Lighting Data
 float3 CameraPos;
@@ -99,7 +101,7 @@ float3 AmbientColour;
 
 //--------------------------------------------------------------------------------------
 // Texture Samplers
-//
+//--------------------------------------------------------------------------------------
 
 SamplerState Anisotropic16
 {
@@ -182,6 +184,28 @@ VS_LIGHTING_OUTPUT PixelDiffSpecTransform(VS_BASIC_INPUT vIn)
 	return vOut;
 }
 
+VS_NORMALMAP_OUTPUT NormalMapTransform(VS_NORMALMAP_INPUT vIn)
+{
+	VS_NORMALMAP_OUTPUT vOut;
+
+	// Transform model position into world space
+	float4 modelPos = float4(vIn.Pos, 1.0f);
+	float4 worldPos = mul(modelPos, WorldMatrix);
+	vOut.WorldPos = worldPos.xyz;
+
+	// Transform vertex from world space to view space
+	vOut.ProjPos = mul(worldPos, ViewProjMatrix);
+
+	// Send the model's normal and tangent in model space. (Pixel shader transforms them to world space)
+	vOut.ModelNormal = vIn.Normal;
+	vOut.ModelTangent = vIn.Tangent;
+
+	// Pass texture coordinates (UVs) on to the pixel shader, the vertex shader doesn't need them
+	vOut.UV = vIn.UV;
+
+	return vOut;
+}
+
 //--------------------------------------------------------------------------------------
 // Pixel Shaders
 //--------------------------------------------------------------------------------------
@@ -196,16 +220,16 @@ float4 OneColour( VS_BASIC_OUTPUT vOut ) : SV_Target
 
 float4 DiffuseTextured(VS_BASIC_OUTPUT vOut) : SV_Target
 {
-	return DiffuseMap.Sample(Anisotropic16, vOut.UV);
+	return DiffuseMap.Sample(Anisotropic16, vOut.UV);	//Return the texture colour of this pixel
 }
 
 float4 ScrollAndTint(VS_BASIC_OUTPUT vOut) : SV_Target
 {
-	float4 diffuseMapColour = DiffuseMap.Sample(Anisotropic16, (vOut.UV + Wiggle / 200));
+	float4 diffuseMapColour = DiffuseMap.Sample(Anisotropic16, (vOut.UV + Wiggle / 200));	//set the map colour of this pixel to an offset UV based on the wiggle value passed from c++
 
 	float4 combinedColour;
-	combinedColour.rgb = diffuseMapColour.rgb * ModelColour;
-	combinedColour.a = 1.0f; //No alpha
+	combinedColour.rgb = diffuseMapColour.rgb * ModelColour;		//Combine the map colour with the model colour using multiplicative blending - this adds a tint to the map colour
+	combinedColour.a = 1.0f;										//No alpha channel
 
 	return combinedColour;
 }
@@ -241,10 +265,10 @@ float4 DiffuseSpecular(VS_LIGHTING_OUTPUT vOut) : SV_Target
 		//AttenuatedLights[i] = (Lights[i].colour / length(LightDirs[i]));	//Calculate Light attenuation
 		LightDirs[i] = normalize(LightDirs[i]); //Can now normalise
 		//Calculate Diffuse Light
-		diffuseLight += (Lights[i].colour * max(dot(vOut.WorldNormal.xyz, LightDirs[i]), 0.0f) / LightDist[i]);	//Add each light's diffuse value one at a time
+		diffuseLight += (Lights[i].colour * saturate(dot(vOut.WorldNormal.xyz, LightDirs[i])) / LightDist[i]);	//Add each light's diffuse value one at a time
 		//Calculate specular light
 		halfwayNormal = normalize(LightDirs[i] + CameraDir);	//Calculate halfway normal for this ligh
-		specularLight += (Lights[i].colour * pow(max(dot(vOut.WorldNormal.xyz, halfwayNormal), 0.0f), Lights[i].specularPower) / LightDist[i]);	//Add Specular light for this light onto the current total 
+		specularLight += (Lights[i].colour / LightDist[i]) * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), Lights[i].specularPower);	//Add Specular light for this light onto the current total 
 
 	}
 	
@@ -272,6 +296,105 @@ float4 DiffuseSpecular(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	return combinedColour;
 }
 
+float4 NormalMapLighting(VS_NORMALMAP_OUTPUT vOut) : SV_Target
+{
+	//************************
+	// Normal Map Extraction
+	//************************
+
+	//Normalise interpolated model normal and tangent
+	float3 modelNormal = normalize(vOut.ModelNormal);
+	float3 modelTangent = normalize(vOut.ModelTangent);
+
+	// Calculate bi-tangent to complete the three axes of tangent space - then create the *inverse* tangent matrix to convert *from*
+	// tangent space into model space.
+	float3 modelBiTangent = cross(modelNormal, modelTangent);
+	float3x3 invTangentMatrix = float3x3(modelTangent, modelBiTangent, modelNormal);
+
+	// Get the texture normal from the normal map and convert from rgb range to xyz range (colour of normal map to the normal itself)
+	float3 textureNormal = 2.0f * NormalMap.Sample(TrilinearWrap, vOut.UV) - 1.0f; 	//range 0->1, to range 1->1.
+
+	/*Exaggerate the normal provided by the texture*/
+	textureNormal.z /= 5.0f;
+	normalize(textureNormal);
+	/*---------------------------------------------*/
+
+	// Convert from texture space to model space using invTangentMatrix, then convert to world space using worldmatrix - then normalize (to accomodate world scaling etc..)
+	float3 worldNormal = normalize(mul(mul(textureNormal, invTangentMatrix), WorldMatrix));
+
+	// The world normal is now the version from the file rather than the automatically generated one
+	//This means we can use the ordinary diffuse/specular lighting equations/shader to perform the lighting calculation
+	
+	// Create a VS_LIGHTING_OUTPUT to send to DiffuseSpecular to perform the relevant lighting calculations
+	VS_LIGHTING_OUTPUT diffSpecOut;
+	diffSpecOut.ProjPos = vOut.ProjPos;
+	diffSpecOut.WorldPos = vOut.WorldPos;
+	diffSpecOut.WorldNormal = worldNormal;
+	diffSpecOut.UV = vOut.UV;
+	return DiffuseSpecular(diffSpecOut);	//Return the value given by the DiffuseSpecular pixel shader
+}
+
+float4 ParallaxMapLighting(VS_NORMALMAP_OUTPUT vOut) : SV_Target
+{
+	//************************
+	// Normal Map Extraction
+	//************************
+
+	//Normalise interpolated model normal and tangent
+	float3 modelNormal = normalize(vOut.ModelNormal);
+	float3 modelTangent = normalize(vOut.ModelTangent);
+
+	// Calculate bi-tangent to complete the three axes of tangent space - then create the *inverse* tangent matrix to convert *from*
+	// tangent space into model space.
+	float3 modelBiTangent = cross(modelNormal, modelTangent);
+	float3x3 invTangentMatrix = float3x3(modelTangent, modelBiTangent, modelNormal);
+
+	//--------------------------------------------
+	// Parallax Mapping - Calculate alternate texture coordinate for this pixel
+	//--------------------------------------------
+
+	// Get normalised vector to camera for parallax mapping and specular equation (this vector was calculated later in previous shaders)
+	float3 CameraDir = normalize(CameraPos - vOut.WorldPos.xyz);
+
+	float3x3 invWorldMatrix = transpose( WorldMatrix );						// Flip matrix over its diagonal - need this to move camera vector from world space 'backwards' into the model space of this model
+	float3 cameraModelDir = normalize( mul( CameraDir, invWorldMatrix ) );	// Normalise in case world matrix is scaled
+
+	// Then transform model-space camera vector into tangent space (texture coordinate space) to give the direction to offset texture
+	// coordinate, only interested in x and y components. Calculated inverse tangent matrix above, so invert it back for this step
+	float3x3 tangentMatrix = transpose( invTangentMatrix ); 
+	float2 textureOffsetDir = mul( cameraModelDir, tangentMatrix );
+
+	// Get the depth info from the normal map's alpha channel at the given texture coordinate
+	// Rescale from 0->1 range to -x->+x range, x determined by ParallaxDepth setting
+	float texDepth = ParallaxDepth * (NormalMap.Sample(TrilinearWrap, vOut.UV).a - 0.5f);
+
+	// Use the depth of the texture to offset the given texture coordinate - this corrected texture coordinate will be used from here on
+	float2 offsetTexCoord = vOut.UV + texDepth * textureOffsetDir;
+
+	//--------------------------------------------
+	// End parallax mapping
+	//--------------------------------------------
+
+	// Get the texture normal from the normal map and convert from rgb range to xyz range (colour of normal map to the normal itself)
+	float3 textureNormal = 2.0f * NormalMap.Sample(TrilinearWrap, offsetTexCoord) - 1.0f; 	//range 0->1, to range 1->1. // Using new offsetTexCoord (parallax effected texture coordinate) instead of standard UV
+
+	// Calculate Lighting for specular/diffuse as usual
+
+	// Convert from texture space to model space using invTangentMatrix, then convert to world space using worldmatrix - then normalize (to accomodate world scaling etc..)
+	float3 worldNormal = normalize(mul(mul(textureNormal, invTangentMatrix), WorldMatrix));
+
+	// The world normal is now the version from the file rather than the automatically generated one
+	//This means we can use the ordinary diffuse/specular lighting equations/shader to perform the lighting calculation
+
+	// Create a VS_LIGHTING_OUTPUT to send to DiffuseSpecular to perform the relevant lighting calculations
+	VS_LIGHTING_OUTPUT diffSpecOut;
+	diffSpecOut.ProjPos = vOut.ProjPos;
+	diffSpecOut.WorldPos = vOut.WorldPos;
+	diffSpecOut.WorldNormal = worldNormal;
+	diffSpecOut.UV = offsetTexCoord;
+	return DiffuseSpecular(diffSpecOut);	//Return the value given by the DiffuseSpecular pixel shader
+}
+
 //-------------------------------------------------------------------------------------
 // Rasteriser States
 //-------------------------------------------------------------------------------------
@@ -283,6 +406,39 @@ RasterizerState CullNone  // Cull none of the polygons, i.e. show both sides
 RasterizerState CullBack  // Cull back side of polygon - normal behaviour, only show front of polygons
 {
 	CullMode = Back;
+};
+RasterizerState CullFront	//Cull front side of polygon - allows you to see from an interior view (e.g. skyboxes)
+{
+	CullMode = Front;
+};
+
+//-------------------------------------------------------------------------------------
+// Blending States
+//-------------------------------------------------------------------------------------
+
+BlendState NoBlending // Switch off blending - pixels will be opaque
+{
+	BlendEnable[0] = FALSE;
+};
+BlendState AdditiveBlending // Additive blending is used for lighting effects
+{
+	BlendEnable[0] = TRUE;
+	SrcBlend = ONE;
+	DestBlend = ONE;
+	BlendOp = ADD;
+};
+
+//-------------------------------------------------------------------------------------
+// Depth Buffer States
+//-------------------------------------------------------------------------------------
+
+DepthStencilState DepthWritesOff // Don't write to the depth buffer - polygons rendered will not obscure other polygons
+{
+	DepthWriteMask = ZERO;
+};
+DepthStencilState DepthWritesOn  // Write to the depth buffer - normal behaviour 
+{
+	DepthWriteMask = ALL;
 };
 
 //--------------------------------------------------------------------------------------
@@ -299,6 +455,10 @@ technique10 PlainColour
 		SetVertexShader( CompileShader( vs_4_0, BasicTransform() ) );
 		SetGeometryShader( NULL );                                   
 		SetPixelShader( CompileShader( ps_4_0, OneColour() ) );
+
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
 	}
 }
 
@@ -309,6 +469,10 @@ technique10 DiffuseTex
 		SetVertexShader(CompileShader(vs_4_0, BasicTransform()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_4_0, DiffuseTextured()));
+
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
 	}
 }
 
@@ -319,6 +483,10 @@ technique10 WiggleAndScroll
 		SetVertexShader(CompileShader(vs_4_0, WiggleTransform()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_4_0, ScrollAndTint()));
+
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
 	}
 }
 
@@ -330,7 +498,37 @@ technique10 PixDiffSpec
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_4_0, DiffuseSpecular()));
 
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
+	}
+}
+
+technique10 NormalMapping
+{
+	pass p0
+	{
+		SetVertexShader(CompileShader(vs_4_0, NormalMapTransform()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, NormalMapLighting()));
+
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
+	}
+}
+
+technique10 ParallaxMapping
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, NormalMapTransform()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, ParallaxMapLighting()));
+
 		// Switch off blending states
-		SetRasterizerState(CullNone);
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
 	}
 }

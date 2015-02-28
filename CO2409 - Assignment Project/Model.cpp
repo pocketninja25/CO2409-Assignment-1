@@ -15,6 +15,8 @@ ID3D10EffectMatrixVariable* CModel::m_MatrixVar = NULL;
 
 ID3D10EffectVectorVariable* CModel::m_ColourVar = NULL;
 
+vector<CTexture*> CModel::m_TextureList = vector<CTexture*>();
+
 void CModel::SetMatrixShaderVariable(ID3D10EffectMatrixVariable* matrixVar)
 {
 	m_MatrixVar = matrixVar;
@@ -29,7 +31,7 @@ void CModel::SetColourShaderVariable(ID3D10EffectVectorVariable* colourVar)
 // Constructors / Destructors
 
 // Constructor - initialise all camera settings - look at the constructor declaration in the header file to see that there are defaults provided for everything
-CModel::CModel( D3DXVECTOR3 position, D3DXVECTOR3 rotation, float scale )
+CModel::CModel( D3DXVECTOR3 position, D3DXVECTOR3 rotation, float scale, D3DXVECTOR3 colour )
 {
 	m_RenderTechnique = NULL;
 
@@ -51,6 +53,8 @@ CModel::CModel( D3DXVECTOR3 position, D3DXVECTOR3 rotation, float scale )
 
 	//Initialise the texture variable to NULL
 	m_ModelTexture = NULL;
+
+	m_Colour = colour;
 }
 
 // Model destructor
@@ -205,6 +209,8 @@ bool CModel::Load( const string& fileName, ID3D10EffectTechnique* exampleTechniq
 
 	//Set the render technique for later rendering
 	m_RenderTechnique = exampleTechnique;
+	m_FileName = fileName;
+
 
 	m_HasGeometry = true;
 	return true;
@@ -213,6 +219,12 @@ bool CModel::Load( const string& fileName, ID3D10EffectTechnique* exampleTechniq
 
 /////////////////////////////
 // Model Usage
+
+// Check if the models texture supports normals (and therefore needs tangents)
+bool CModel::UseTangents()
+{
+	return m_ModelTexture->UseNormals();
+}
 
 // Update the world matrix of the model from its position, rotation and scaling
 void CModel::UpdateMatrix()
@@ -277,7 +289,7 @@ void CModel::Control( float frameTime, EKeyCode turnUp, EKeyCode turnDown, EKeyC
 
 
 // Render the model with the given technique. Assumes any shader variables for the technique have already been set up (e.g. matrices and textures)
-void CModel::Render(D3DXVECTOR3 colour)
+void CModel::Render()
 {
 	// Don't render if no geometry - or no render technique
 	if (!m_HasGeometry || !m_RenderTechnique)
@@ -296,7 +308,7 @@ void CModel::Render(D3DXVECTOR3 colour)
 	}
 	if (m_ColourVar)
 	{
-		m_ColourVar->SetRawValue(colour, 0, sizeof(D3DXVECTOR3));
+		m_ColourVar->SetRawValue(m_Colour, 0, sizeof(D3DXVECTOR3));
 	}
 
 	// Select vertex and index buffer - assuming all data will be as triangle lists

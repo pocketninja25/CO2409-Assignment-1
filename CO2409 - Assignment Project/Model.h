@@ -16,6 +16,8 @@ using namespace std;
 #include "Input.h"
 #include "Texture.h"
 
+#include <vector>
+
 class CModel
 {
 /////////////////////////////
@@ -62,6 +64,10 @@ private:
 	//Pointer to texture
 	CTexture* m_ModelTexture;
 
+	//Technique change variables
+	string m_FileName;
+
+
 	//--------------
 	// Render effect variables
 	
@@ -70,9 +76,12 @@ private:
 	//Effect variable to pass colour to shader
 	static ID3D10EffectVectorVariable* m_ColourVar;
 
+	D3DXVECTOR3 m_Colour;
+
 /////////////////////////////
 // Public member functions
 public:
+	static vector<CTexture*> m_TextureList;
 
 	static void SetMatrixShaderVariable(ID3D10EffectMatrixVariable* matrixVar);
 	static void SetColourShaderVariable(ID3D10EffectVectorVariable* colourVar);
@@ -81,7 +90,7 @@ public:
 	// Constructors / Destructors
 
 	// Constructor - initialise all settings, sensible defaults provided for everything.
-	CModel( D3DXVECTOR3 position = D3DXVECTOR3(0,0,0), D3DXVECTOR3 rotation = D3DXVECTOR3(0,0,0), float scale = 1.0f );
+	CModel( D3DXVECTOR3 position = D3DXVECTOR3(0,0,0), D3DXVECTOR3 rotation = D3DXVECTOR3(0,0,0), float scale = 1.0f, D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f ));
 
 	// Destructor
 	~CModel();
@@ -106,7 +115,6 @@ public:
 	{
 		return m_Scale;
 	}
-
 	D3DXMATRIX GetWorldMatrix()
 	{
 		return m_WorldMatrix;
@@ -134,7 +142,15 @@ public:
 	{
 		m_ModelTexture = texture;
 	}
-
+	void SetRenderTechnique(ID3D10EffectTechnique* renderTechnique)
+	{
+		Load(m_FileName, renderTechnique, UseTangents());
+	}
+	void SetColour(D3DXVECTOR3 colour)
+	{
+		m_Colour = colour;
+	}
+	
 	/////////////////////////////
 	// Model Loading
 
@@ -148,6 +164,9 @@ public:
 	/////////////////////////////
 	// Model Usage
 
+	// Check if the models texture supports normals (and therefore needs tangents)
+	bool UseTangents();
+
 	// Update the world matrix of the model from its position, rotation and scaling
 	void UpdateMatrix();
 	
@@ -156,7 +175,7 @@ public:
 				  EKeyCode turnCW, EKeyCode turnCCW, EKeyCode moveForward, EKeyCode moveBackward );
 
 	// Render the model with the given technique. Assumes any shader variables for the technique have already been set up (e.g. matrices and textures)
-	void Render(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));
+	void Render();
 };
 
 

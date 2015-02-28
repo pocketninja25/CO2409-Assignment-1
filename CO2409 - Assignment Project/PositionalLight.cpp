@@ -17,7 +17,7 @@ void CPositionalLight::SetSpecularPowerVar(ID3D10EffectScalarVariable* specularP
 CPositionalLight::CPositionalLight(D3DXVECTOR3 diffuseColour, D3DXVECTOR3 specularColour, D3DXVECTOR3 position, float scale, bool isStationary, float specularPower) :
 		m_DiffuseColour(diffuseColour),
 		m_SpecularColour(specularColour),
-		m_Model(CModel(position, D3DXVECTOR3(0.0f, 0.0f, 0.0f), scale)),
+		m_Model(CModel(position, D3DXVECTOR3(0.0f, 0.0f, 0.0f), scale, m_DiffuseColour)),
 		m_IsStationary(isStationary),
 		m_SpecularPower(specularPower)
 {
@@ -47,5 +47,6 @@ void CPositionalLight::LightRender(D3DXVECTOR3 colour)
 
 void CPositionalLight::ModelRender(D3DXVECTOR3 colour)			//Call model render
 {
-	m_Model.Render(colour);
+	m_Model.SetColour(colour);
+	m_Model.Render();
 }
