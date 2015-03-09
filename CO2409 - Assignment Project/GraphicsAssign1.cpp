@@ -51,7 +51,7 @@
 //--------------------------------------------------------------------------------------
 // Global Scene Variables
 //--------------------------------------------------------------------------------------
-const unsigned int NO_OF_LIGHTS = 2;
+const unsigned int NO_OF_LIGHTS = 3;
 
 // Models and cameras encapsulated in classes for flexibity and convenience
 // The CModel class collects together geometry and world matrix, and provides functions to control the model and render it
@@ -59,23 +59,12 @@ const unsigned int NO_OF_LIGHTS = 2;
 
 vector<CModel*> g_Models;
 
-CCamera* Camera = NULL;
+CCamera* Camera = NULL; 
 
-// Textures
-CTexture* StoneTexture = NULL;
-CTexture* WoodTexture = NULL;
-CTexture* GrassTexture = NULL;
-CTexture* BrainTexture = NULL;
-CTexture* PatternTexture = NULL;
-CTexture* CobbleTexture = NULL;
-CTexture* TechTexture = NULL;
-CTexture* WallTexture = NULL;
-CTexture* Troll1Texture = NULL;
-
-// Light data - stored manually as there is no light class
+// Additional Light data
 D3DXVECTOR3 PulsingLightColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 
-// Display models where the lights are. One of the lights will follow an orbit
+// Light Class and orbit data
 CPositionalLight* Lights[NO_OF_LIGHTS];
 CAmbientLight* AmbientLight = NULL;
 const float LightOrbitRadius = 20.0f;
@@ -84,6 +73,7 @@ const float LightOrbitSpeed  = 0.5f;
 //Misc values
 float Wiggle = 0.0f;
 float PulseTime = 0.0f;
+
 // Note: There are move & rotation speed constants in Defines.h
 
 //--------------------------------------------------------------------------------------
@@ -92,7 +82,7 @@ float PulseTime = 0.0f;
 // Variables to connect C++ code to HLSL shaders
 
 // Effects / techniques
-ID3D10Effect*          Effect = NULL;
+ID3D10Effect* Effect = NULL;
 
 CTechnique* PlainColourTechnique = NULL;
 CTechnique* DiffuseTexturedTechnique = NULL;
@@ -101,8 +91,11 @@ CTechnique* PixelLightingTechnique = NULL;
 CTechnique* NormalMapTechnique = NULL;
 CTechnique* ParallaxMapTechnique = NULL;
 CTechnique* CelShadingTechnique = NULL;
-
-enum RenderMode {PixelLit, NormalLit, ParallaxLit, WiggleLit, CelShaded};
+CTechnique* AdditiveTexTintTechnique = NULL;
+CTechnique* ParallaxCelShadeTechnique = NULL;
+CTechnique* AlphaCutoutTechnique = NULL;
+CTechnique* ParallaxOutlinedTechnique = NULL;
+CTechnique* PixelLitOutlinedTechnique = NULL;
 
 // Matrices
 ID3D10EffectMatrixVariable* ViewMatrixVar = NULL;
@@ -245,13 +238,18 @@ bool LoadEffectFile()
 	}
 
 	// Select techniques from compiled effect file
-	PlainColourTechnique =		new CTechnique(Effect->GetTechniqueByName("PlainColour"));
-	DiffuseTexturedTechnique =	new CTechnique(Effect->GetTechniqueByName("DiffuseTex"));
-	WiggleAndScrollTechnique =	new CTechnique(Effect->GetTechniqueByName("WiggleAndScroll"));
-	PixelLightingTechnique =	new CTechnique(Effect->GetTechniqueByName("PixDiffSpec"));
-	NormalMapTechnique =		new CTechnique(Effect->GetTechniqueByName("NormalMapping"));
-	ParallaxMapTechnique =		new CTechnique(Effect->GetTechniqueByName("ParallaxMapping"));
-	CelShadingTechnique =		new CTechnique(Effect->GetTechniqueByName("CelShading"));
+	PlainColourTechnique =		new CTechnique(Effect->GetTechniqueByName("PlainColour"), false, false, false);
+	DiffuseTexturedTechnique =	new CTechnique(Effect->GetTechniqueByName("DiffuseTex"), true, false, false);
+	WiggleAndScrollTechnique =	new CTechnique(Effect->GetTechniqueByName("WiggleAndScroll"), true, false, false);
+	PixelLightingTechnique =	new CTechnique(Effect->GetTechniqueByName("PixDiffSpec"), true, false, false);
+	NormalMapTechnique =		new CTechnique(Effect->GetTechniqueByName("NormalMapping"), true, true, false);
+	ParallaxMapTechnique =		new CTechnique(Effect->GetTechniqueByName("ParallaxMapping"), true, true, false);
+	CelShadingTechnique =		new CTechnique(Effect->GetTechniqueByName("CelShading"), false, false, true);
+	AdditiveTexTintTechnique =  new CTechnique(Effect->GetTechniqueByName("AdditiveTexTint"), true, false, false);
+	ParallaxCelShadeTechnique = new CTechnique(Effect->GetTechniqueByName("ParallaxCelShaded"), true, true, true);
+	AlphaCutoutTechnique =		new CTechnique(Effect->GetTechniqueByName("AlphaCutout"), true, false, false);
+	ParallaxOutlinedTechnique = new CTechnique(Effect->GetTechniqueByName("ParallaxOutlined"), true, true, false);
+	PixelLitOutlinedTechnique = new CTechnique(Effect->GetTechniqueByName("PixelLitOutlined"), true, false, false);
 
 	// Push techniques onto the model technique list
 	CModel::m_TechniqueList.push_back(PlainColourTechnique);
@@ -261,6 +259,11 @@ bool LoadEffectFile()
 	CModel::m_TechniqueList.push_back(NormalMapTechnique);
 	CModel::m_TechniqueList.push_back(ParallaxMapTechnique);
 	CModel::m_TechniqueList.push_back(CelShadingTechnique);
+	CModel::m_TechniqueList.push_back(AdditiveTexTintTechnique);
+	CModel::m_TechniqueList.push_back(ParallaxCelShadeTechnique);
+	CModel::m_TechniqueList.push_back(AlphaCutoutTechnique);
+	CModel::m_TechniqueList.push_back(ParallaxOutlinedTechnique);
+	CModel::m_TechniqueList.push_back(PixelLitOutlinedTechnique);
 
 	//--------------------------------------------
 	// Create links to effect file globals
@@ -311,15 +314,18 @@ bool InitScene()
 	// Texture initialisation
 
 	// Create Texture objects
-	StoneTexture = new CTexture();
-	WoodTexture = new CTexture();
-	GrassTexture = new CTexture();
-	BrainTexture = new CTexture();
-	PatternTexture = new CTexture();
-	CobbleTexture = new CTexture();
-	TechTexture = new CTexture();
-	WallTexture = new CTexture();
-	Troll1Texture = new CTexture();
+	CTexture* StoneTexture = new CTexture();
+	CTexture* WoodTexture = new CTexture();
+	CTexture* GrassTexture = new CTexture();
+	CTexture* BrainTexture = new CTexture();
+	CTexture* PatternTexture = new CTexture();
+	CTexture* CobbleTexture = new CTexture();
+	CTexture* TechTexture = new CTexture();
+	CTexture* WallTexture = new CTexture();
+	CTexture* Troll1Texture = new CTexture();
+	CTexture* LightTexture = new CTexture();
+	CTexture* ThunderboltTexture = new CTexture();
+	CTexture* FlamesTexture = new CTexture();
 
 	// Push Texture objects onto texture list
 	CModel::m_TextureList.push_back(StoneTexture);
@@ -331,6 +337,9 @@ bool InitScene()
 	CModel::m_TextureList.push_back(TechTexture);
 	CModel::m_TextureList.push_back(WallTexture);
 	CModel::m_TextureList.push_back(Troll1Texture);
+	CModel::m_TextureList.push_back(LightTexture);
+	CModel::m_TextureList.push_back(ThunderboltTexture);
+	CModel::m_TextureList.push_back(FlamesTexture);
 
 	// Load Texture maps from file and set other texture variables
 	if (!StoneTexture->LoadDiffSpecMap(TEXT("StoneDiffuseSpecular.dds")))		return false;
@@ -368,23 +377,30 @@ bool InitScene()
 	if (!TechTexture->LoadDiffSpecMap(TEXT("TechDiffuseSpecular.dds")))			return false;
 	if (!TechTexture->LoadNormalMap(TEXT("TechNormalDepth.dds")))				return false;
 	TechTexture->SetParallaxDepth(0.08f);
-	if (!TechTexture->LoadCelGradient(TEXT("CelGradient.png")))				return false;
+	if (!TechTexture->LoadCelGradient(TEXT("CelGradient.png")))					return false;
 	TechTexture->SetOutlineThickness(0.035f);
 
 	if (!WallTexture->LoadDiffSpecMap(TEXT("WallDiffuseSpecular.dds")))			return false;
 	if (!WallTexture->LoadNormalMap(TEXT("WallNormalDepth.dds")))				return false;
 	WallTexture->SetParallaxDepth(0.08f);
-	if (!WallTexture->LoadCelGradient(TEXT("CelGradient.png")))				return false;
+	if (!WallTexture->LoadCelGradient(TEXT("CelGradient.png")))					return false;
 	WallTexture->SetOutlineThickness(0.035f);
 
 	if (!Troll1Texture->LoadDiffSpecMap(TEXT("Troll1DiffuseSpecular.dds")))		return false;
 	if (!Troll1Texture->LoadCelGradient(TEXT("CelGradient.png")))				return false;
 	Troll1Texture->SetOutlineThickness(0.035f);
+		
+	if (!ThunderboltTexture->LoadDiffSpecMap(TEXT("thdbolt.jpg")))				return false;
+	if (!ThunderboltTexture->LoadCelGradient(TEXT("CelGradient.png")))			return false;
+
+	if (!LightTexture->LoadDiffSpecMap(TEXT("Flare.jpg")))						return false;
+
+	if (!FlamesTexture->LoadDiffSpecMap(TEXT("flames4.png")))					return false;
 
 	// Model initialisation
 
 	// Load/Create models
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < 7; i++)
 	{
 		g_Models.push_back(new CModel);
 	}
@@ -396,7 +412,9 @@ bool InitScene()
 	g_Models[2]->SetTexture(WoodTexture);
 	g_Models[3]->SetTexture(StoneTexture);
 	g_Models[4]->SetTexture(Troll1Texture);
-	
+	g_Models[5]->SetTexture(BrainTexture);
+	g_Models[6]->SetTexture(ThunderboltTexture);
+
 	// Set Model Colours
 	
 	// Constant colours used for models in initial shaders
@@ -411,66 +429,20 @@ bool InitScene()
 	g_Models[2]->SetColour(Blue);
 	g_Models[3]->SetColour(Yellow);
 	g_Models[4]->SetColour(Black);
-	
+	g_Models[5]->SetColour(Red);
+	g_Models[6]->SetColour(Yellow);
+
 	// Set Render Techniques and load models
 
 	// The model class can load ".X" files. It encapsulates (i.e. hides away from this code) the file loading/parsing and creation of vertex/index buffers
 	// We must pass an example technique used for each model. We can then only render models with techniques that uses matching vertex input data
-	if (!g_Models[0]->Load(		"Cube.x",	ParallaxMapTechnique,			g_Models[0]->UseTangents()))	return false;
-	if (!g_Models[1]->Load(		"Teapot.x", ParallaxMapTechnique,			g_Models[1]->UseTangents()))	return false;
-	if (!g_Models[2]->Load(		"Floor.x",	ParallaxMapTechnique,			g_Models[2]->UseTangents()))	return false;
-	if (!g_Models[3]->Load(		"Sphere.x", WiggleAndScrollTechnique,		g_Models[3]->UseTangents()))	return false;		
-	if (!g_Models[4]->Load(		"Troll.x",	CelShadingTechnique,			g_Models[4]->UseTangents()))	return false;
-	
-	// Load/Create lights
-
-	AmbientLight =	new CAmbientLight(D3DXVECTOR3(0.2f, 0.2f, 0.2f));
-	
-	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
-	{
-		Lights[i] = new CPositionalLight;
-	}
-	// Set light shader variables
-
-	//Light Colours
-	Lights[0]->SetColourVar(Effect->GetVariableByName("Light1Colour")->AsVector());
-	Lights[1]->SetColourVar(Effect->GetVariableByName("Light2Colour")->AsVector());
-	//Light Positions
-	Lights[0]->SetPositionVar(Effect->GetVariableByName("Light1Position")->AsVector());
-	Lights[1]->SetPositionVar(Effect->GetVariableByName("Light2Position")->AsVector());
-	//Light Specular Powers
-	Lights[0]->SetSpecularPowerVar(Effect->GetVariableByName("Light1SpecularPower")->AsScalar());
-	Lights[1]->SetSpecularPowerVar(Effect->GetVariableByName("Light2SpecularPower")->AsScalar());
-
-	// Light Positioning, colour data etc
-	Lights[0]->SetPosition( D3DXVECTOR3(30.0f, 10.0f, 0.0f) );
-	Lights[0]->SetScale( 0.1f ); // Nice if size of light reflects its brightness
-	Lights[0]->SetIsStationary(false);
-	Lights[0]->SetDiffuseColour( D3DXVECTOR3(1.0f, 0.0f, 0.7f) * 5.0f);
-	Lights[0]->SetSpecularColour( D3DXVECTOR3(1.0f, 0.0f, 0.7f) * 5.0f);
-	Lights[0]->SetSpecularPower(64.0f);
-
-	Lights[1]->SetPosition( D3DXVECTOR3(-20.0f, 30.0f, 50.0f) );			
-	Lights[1]->SetScale( 0.2f );
-	Lights[1]->SetIsStationary(true);
-	Lights[1]->SetDiffuseColour( D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 10.0f);
-	Lights[1]->SetSpecularColour( D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 10.0f);
-	Lights[1]->SetSpecularPower(64.0f);
-
-	// Update the matrices of lights that will be stationary (dont need to update them in update scene) 
-	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
-	{
-		if (Lights[i]->IsStationary())
-		{
-			Lights[i]->UpdateMatrix();
-		}
-	}
-
-	// Create Light models
-	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
-	{
-		if (!Lights[i]->LoadModel( "Sphere.x", PlainColourTechnique ))	return false;
-	}
+	if (!g_Models[0]->Load(	"Cube.x",	ParallaxMapTechnique		))	return false;
+	if (!g_Models[1]->Load(	"Teapot.x", ParallaxMapTechnique		))	return false;
+	if (!g_Models[2]->Load(	"Floor.x",	ParallaxMapTechnique		))	return false;
+	if (!g_Models[3]->Load(	"Sphere.x", WiggleAndScrollTechnique	))	return false;		
+	if (!g_Models[4]->Load(	"Troll.x",	CelShadingTechnique			))	return false;
+	if (!g_Models[5]->Load(	"Hills.x",	ParallaxOutlinedTechnique	))	return false;
+	if (!g_Models[6]->Load("A10Thunderbolt.x", PixelLightingTechnique)) return false;
 
 	// Set Initial Positions/Scales of models
 	g_Models[0]->SetPosition(D3DXVECTOR3(0.0f, 10.0f, 0.0f));
@@ -484,232 +456,158 @@ bool InitScene()
 
 	g_Models[4]->SetPosition(D3DXVECTOR3(-25.0f, 1.0f, 80.0f));
 	g_Models[4]->SetScale(10.0f);
+
+	g_Models[5]->SetPosition(D3DXVECTOR3(500.0f, 0.0f, 0.0f));
+
+	g_Models[6]->SetPosition(D3DXVECTOR3(-128.0f, 32.5f, 45.0f));
+	g_Models[6]->SetScale(5.0f);
+	g_Models[6]->SetRotation(D3DXVECTOR3(ToRadians(15.0f), ToRadians(120.0f), 0.0f));
 	
+	
+	// Load/Create lights and light models
+
+	AmbientLight =	new CAmbientLight(D3DXVECTOR3(0.2f, 0.2f, 0.2f));
+	
+	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
+	{
+		Lights[i] = new CPositionalLight;
+	}
+	// Set light shader variables
+
+	//Light Colours
+	Lights[0]->SetDiffuseColourVar(Effect->GetVariableByName("Light1DiffuseCol")->AsVector());
+	Lights[1]->SetDiffuseColourVar(Effect->GetVariableByName("Light2DiffuseCol")->AsVector());
+	Lights[2]->SetDiffuseColourVar(Effect->GetVariableByName("Light3DiffuseCol")->AsVector());
+	Lights[0]->SetSpecularColourVar(Effect->GetVariableByName("Light1SpecularCol")->AsVector());
+	Lights[1]->SetSpecularColourVar(Effect->GetVariableByName("Light2SpecularCol")->AsVector());
+	Lights[2]->SetSpecularColourVar(Effect->GetVariableByName("Light3SpecularCol")->AsVector());
+	//Light Positions
+	Lights[0]->SetPositionVar(Effect->GetVariableByName("Light1Position")->AsVector());
+	Lights[1]->SetPositionVar(Effect->GetVariableByName("Light2Position")->AsVector());
+	Lights[2]->SetPositionVar(Effect->GetVariableByName("Light3Position")->AsVector());
+	//Light Specular Powers
+	Lights[0]->SetSpecularPowerVar(Effect->GetVariableByName("Light1SpecularPower")->AsScalar());
+	Lights[1]->SetSpecularPowerVar(Effect->GetVariableByName("Light2SpecularPower")->AsScalar());
+	Lights[2]->SetSpecularPowerVar(Effect->GetVariableByName("Light3SpecularPower")->AsScalar());
+
+	// Light Positioning, colour data etc
+	Lights[0]->SetPosition( D3DXVECTOR3(30.0f, 10.0f, 0.0f) );
+	Lights[0]->SetScale( 4.0f ); // Nice if size of light reflects its brightness
+	Lights[0]->SetIsStationary(false);
+	Lights[0]->SetDiffuseColour(  D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 10.0f);
+	Lights[0]->SetSpecularColour( D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 1.5f);
+	Lights[0]->SetSpecularPower(64.0f);
+
+	Lights[1]->SetPosition( D3DXVECTOR3(-20.0f, 30.0f, 50.0f) );			
+	Lights[1]->SetScale( 4.0f );
+	Lights[1]->SetIsStationary(true);
+	Lights[1]->SetSpecularColour( D3DXVECTOR3(1.0f, 0.0f, 0.7f) * 15.0f);
+	Lights[1]->SetDiffuseColour(  D3DXVECTOR3(1.0f, 0.0f, 0.7f) * 15.f);
+	Lights[1]->SetSpecularPower(64.0f);
+
+	Lights[2]->SetPosition(D3DXVECTOR3(-95.0f, 22.5f, 26.0f));
+	Lights[2]->SetScale(2.0f);
+	Lights[2]->SetRotation(D3DXVECTOR3(ToRadians(-15.0f), ToRadians(300.0f), 0.0f));
+	Lights[2]->SetIsStationary(true);
+	Lights[2]->SetDiffuseColour(	D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 60.0f);
+	Lights[2]->SetSpecularColour(	D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 15.0f);
+	Lights[2]->SetSpecularPower(128.0f);
+
+	// Update the matrices of lights that will be stationary (dont need to update them in update scene) 
+	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
+	{
+		if (Lights[i]->IsStationary())
+		{
+			Lights[i]->UpdateMatrix();
+		}
+	}
+
+	// Create Light models
+	for (unsigned int i = 0; i < 2; i++)
+	{
+		Lights[i]->SetTexture(LightTexture);
+		if (!Lights[i]->LoadModel( "Light.x", AdditiveTexTintTechnique ))	return false;
+	}
+
+	Lights[2]->SetTexture(FlamesTexture);
+	if (!Lights[2]->LoadModel("FlameShell.x", AlphaCutoutTechnique)) return false;
+
 	return true;
 }
 
 void SwitchTexturesAndRenderModes()
 {
-	static RenderMode currentMode = ParallaxLit;
-
 	if (KeyHit(Key_1))
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
-			g_Models[i]->SetRenderTechnique(PixelLightingTechnique);
+			g_Models[i]->SetRenderTechnique(PlainColourTechnique);
 		}
-		currentMode = PixelLit;
 	}
 	if (KeyHit(Key_2))
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
-			g_Models[i]->SetRenderTechnique(NormalMapTechnique);
+			g_Models[i]->SetRenderTechnique(DiffuseTexturedTechnique);
 		}
-		currentMode = NormalLit;
 	}
 	if (KeyHit(Key_3))
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
-			g_Models[i]->SetRenderTechnique(ParallaxMapTechnique);
+			g_Models[i]->SetRenderTechnique(WiggleAndScrollTechnique);
 		}
-		currentMode = ParallaxLit;
 	}
 	if (KeyHit(Key_4))
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
-			g_Models[i]->SetRenderTechnique(WiggleAndScrollTechnique);
+			g_Models[i]->SetRenderTechnique(PixelLightingTechnique);
 		}
-		currentMode = WiggleLit;
 	}
 	if (KeyHit(Key_5))
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
-			g_Models[i]->SetRenderTechnique(CelShadingTechnique);
+			g_Models[i]->SetRenderTechnique(NormalMapTechnique);
 		}
-		currentMode = CelShaded;
 	}
+	if (KeyHit(Key_6))
+	{
+		for (unsigned int i = 0; i < g_Models.size(); i++)
+		{
+			g_Models[i]->SetRenderTechnique(ParallaxMapTechnique);
+		}
+	}
+	if (KeyHit(Key_7))
+	{
+		for (unsigned int i = 0; i < g_Models.size(); i++)
+		{
+			if (g_Models[i]->UseTangents())
+			{
+				g_Models[i]->SetRenderTechnique(ParallaxOutlinedTechnique);
+			}
+			else // does not use tangents
+			{
+				g_Models[i]->SetRenderTechnique(PixelLitOutlinedTechnique);
 
-	//if (KeyHit(Key_7))	//Cycle textures and apply to wiggleSphere 
-	//{
-	//	static unsigned int wiggleSphTex = 0;
-	//	wiggleSphTex++;
-	//	if (wiggleSphTex >= CModel::m_TextureList.size())
-	//	{
-	//		wiggleSphTex = 0;
-	//	}
-	//	g_Models[3]->SetTexture(CModel::m_TextureList[wiggleSphTex]);
-	//	if (g_Models[3]->UseTangents())
-	//	{
-	//		switch (currentMode)		//If the cube's current (new) texture has a bump map then set its render technique to the 'currentMode'
-	//		{
-	//		case PixelLit:
-	//			g_Models[3]->SetRenderTechnique(PixDiffSpecTechnique);
-	//			break;
-	//		case NormalLit:
-	//			g_Models[3]->SetRenderTechnique(NormalMapTechnique);
-	//			break;
-	//		case ParallaxLit:
-	//			g_Models[3]->SetRenderTechnique(ParallaxMapTechnique);
-	//			break;
-	//		case WiggleLit:
-	//			g_Models[3]->SetRenderTechnique(WiggleAndScrollTechnique);
-	//			break;
-	//		case CelShaded:
-	//			g_Models[3]->SetRenderTechnique(CelShadingTechnique);
-	//			break;
-	//		default:
-	//			break;
-	//		}
-	//	}
-	//	else	//Does not have a bump map - use standard pixel lighting technique regardless of current mode
-	//	{
-	//		if (currentMode == WiggleLit)
-	//		{
-	//			g_Models[3]->SetRenderTechnique(WiggleAndScrollTechnique);
-	//		}
-	//		else if (currentMode == PixelLit)
-	//		{
-	//			g_Models[3]->SetRenderTechnique(PixDiffSpecTechnique);
-	//		}
-	//	}
-	//}
-	//if (KeyHit(Key_8))	//Cycle textures and apply to cube 
-	//{
-	//	static unsigned int cubeTex = 0;
-	//	cubeTex++;
-	//	if (cubeTex >= CModel::m_TextureList.size())
-	//	{
-	//		cubeTex = 0;
-	//	}
-	//	g_Models[0]->SetTexture(CModel::m_TextureList[cubeTex]);
-	//	if (g_Models[0]->UseTangents())
-	//	{
-	//		switch (currentMode)		//If the cube's current (new) texture has a bump map then set its render technique to the 'currentMode'
-	//		{
-	//		case PixelLit:
-	//			g_Models[0]->SetRenderTechnique(PixDiffSpecTechnique);
-	//			break;
-	//		case NormalLit:
-	//			g_Models[0]->SetRenderTechnique(NormalMapTechnique);
-	//			break;
-	//		case ParallaxLit:
-	//			g_Models[0]->SetRenderTechnique(ParallaxMapTechnique);
-	//			break;
-	//		case WiggleLit:
-	//			g_Models[0]->SetRenderTechnique(WiggleAndScrollTechnique);
-	//			break;
-	//		case CelShaded:
-	//			g_Models[0]->SetRenderTechnique(CelShadingTechnique);
-	//			break;
-	//		default:
-	//			break;
-	//		}
-	//	}
-	//	else	//Does not have a bump map - use standard pixel lighting technique regardless of current mode
-	//	{
-	//		if (currentMode == WiggleLit)
-	//		{
-	//			g_Models[0]->SetRenderTechnique(WiggleAndScrollTechnique);
-	//		}
-	//		else if(currentMode == PixelLit)
-	//		{
-	//			g_Models[0]->SetRenderTechnique(PixDiffSpecTechnique);
-	//		}
-	//	}
-	//}
-	//if (KeyHit(Key_9))	//Cycle textures and apply to floor 
-	//{
-	//	static unsigned int floorTex = 0;
-	//	floorTex++;
-	//	if (floorTex >= CModel::m_TextureList.size())
-	//	{
-	//		floorTex = 0;
-	//	}
-	//	g_Models[2]->SetTexture(CModel::m_TextureList[floorTex]);
-	//	if (g_Models[2]->UseTangents())				//If the floor's current (new) texture has a bump map then set its render technique to the 'currentMode'
-	//	{
-	//		switch (currentMode)
-	//		{
-	//		case PixelLit:
-	//			g_Models[2]->SetRenderTechnique(PixDiffSpecTechnique);
-	//			break;
-	//		case NormalLit:
-	//			g_Models[2]->SetRenderTechnique(NormalMapTechnique);
-	//			break;
-	//		case ParallaxLit:
-	//			g_Models[2]->SetRenderTechnique(ParallaxMapTechnique);
-	//			break;
-	//		case WiggleLit:
-	//			g_Models[2]->SetRenderTechnique(WiggleAndScrollTechnique);
-	//			break;
-	//		case CelShaded:
-	//			g_Models[2]->SetRenderTechnique(CelShadingTechnique);
-	//			break;
-	//		default:
-	//			break;
-	//		}
-	//	}
-	//	else //Does not have a bump map - use standard pixel lighting technique
-	//	{
-	//		if (currentMode == WiggleLit)
-	//		{
-	//			g_Models[2]->SetRenderTechnique(WiggleAndScrollTechnique);
-	//		}
-	//		else if(currentMode == PixelLit)
-	//		{
-	//			g_Models[2]->SetRenderTechnique(PixDiffSpecTechnique);
-	//		}
-	//	}
-	//}
-	//if (KeyHit(Key_0))	//Cycle textures and apply to teapot 
-	//{
-	//	static unsigned int teapotTex = 0;
-	//	teapotTex++;
-	//	if (teapotTex >= CModel::m_TextureList.size())
-	//	{
-	//		teapotTex = 0;
-	//	}
-	//	g_Models[1]->SetTexture(CModel::m_TextureList[teapotTex]);
-	//	if (g_Models[1]->UseTangents())					//If the teapot's current (new) texture has a bump map then set its render technique to the 'currentMode'
-	//	{
-	//		switch (currentMode)
-	//		{
-	//		case PixelLit:
-	//			g_Models[1]->SetRenderTechnique(PixDiffSpecTechnique);
-	//			break;
-	//		case NormalLit:
-	//			g_Models[1]->SetRenderTechnique(NormalMapTechnique);
-	//			break;
-	//		case ParallaxLit:
-	//			g_Models[1]->SetRenderTechnique(ParallaxMapTechnique);
-	//			break;
-	//		case WiggleLit:
-	//			g_Models[1]->SetRenderTechnique(WiggleAndScrollTechnique);
-	//			break;
-	//		case CelShaded:
-	//			g_Models[2]->SetRenderTechnique(CelShadingTechnique);
-	//			break;
-	//		default:
-	//			break;
-	//		}
-	//	}
-	//	else	//Does not have a bump map - use standard pixel lighting technique
-	//	{
-	//		if (currentMode == WiggleLit)
-	//		{
-	//			g_Models[1]->SetRenderTechnique(WiggleAndScrollTechnique);
-	//		}
-	//		else if (currentMode == PixelLit)
-	//		{
-	//			g_Models[1]->SetRenderTechnique(PixDiffSpecTechnique);
-	//		}
-	//	}
-	//}
-
+			}
+		}
+	}
+	if (KeyHit(Key_8))
+	{
+		for (unsigned int i = 0; i < g_Models.size(); i++)
+		{
+			if (g_Models[i]->UseTangents())
+			{
+				g_Models[i]->SetRenderTechnique(ParallaxCelShadeTechnique);
+			}
+			else // does not use tangents
+			{
+				g_Models[i]->SetRenderTechnique(CelShadingTechnique);
+			}
+		}
+	}
 }
 
 // Update the scene - move/rotate each model and the camera, then update their matrices
@@ -729,8 +627,8 @@ void UpdateScene(float frameTime)
 	for (unsigned int i = 0; i < g_Models.size(); i++)
 	{
 		g_Models[i]->UpdateMatrix();
-
 	}
+	D3DMATRIX foo = g_Models[6]->GetWorldMatrix();
 
 	// Update wiggle value
 	Wiggle += 15.0f * frameTime;
@@ -743,27 +641,28 @@ void UpdateScene(float frameTime)
 	float cosTime = cosf(PulseTime);
 
 	PulsingLightColour = D3DXVECTOR3(
-		Lights[0]->GetDiffuseColour().x * ((cosTime + 1.0f)/2), 
-		Lights[0]->GetDiffuseColour().y * ((cosTime + 1.0f)/2),
-		Lights[0]->GetDiffuseColour().z * ((cosTime + 1.0f)/2));
-		
+		Lights[1]->GetDiffuseColour().x * ((cosTime + 1.0f)/2), 
+		Lights[1]->GetDiffuseColour().y * ((cosTime + 1.0f)/2),
+		Lights[1]->GetDiffuseColour().z * ((cosTime + 1.0f)/2));
+
 	// ColourChangeLight
 
 	static float timer = 0.0f;
 	timer += frameTime;
 	if (timer > 0.04f)
 	{
-		D3DXVECTOR3 changingLightColour = Lights[1]->GetDiffuseColour();
+		D3DXVECTOR3 changingLightColour = Lights[0]->GetDiffuseColour();
 		int h, s, l;
 		RGBToHSL(changingLightColour.x, changingLightColour.y, changingLightColour.z, h, s, l);
 		timer = 0.0f;
 		h += 2;
 		HSLToRGB(h, s, l, changingLightColour.x, changingLightColour.y, changingLightColour.z);
 
-		Lights[1]->SetDiffuseColour(changingLightColour);
+		Lights[0]->SetDiffuseColour(changingLightColour);
+		Lights[0]->SetSpecularColour(changingLightColour);
 	}
 	
-	// Update the orbiting light - a bit of a cheat with the static variable [ask the tutor if you want to know what this is]
+	// Update the orbiting light position - a bit of a cheat with the static variable [ask the tutor if you want to know what this is]
 	static float Rotate = 0.0f;
 	Lights[0]->SetPosition(g_Models[0]->GetPosition() + D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0.0f, sin(Rotate)*LightOrbitRadius));
 	Rotate -= LightOrbitSpeed * frameTime;
@@ -777,7 +676,6 @@ void UpdateScene(float frameTime)
 		}
 	}
 	
-
 }
 
 // Render everything in the scene
@@ -798,11 +696,12 @@ void RenderScene()
 	CameraPositionVar->SetRawValue(Camera->GetPosition(), 0, sizeof(D3DXVECTOR3));
 
 	// Lighting data
-	D3DXVECTOR3 LightColours[NO_OF_LIGHTS] = { PulsingLightColour /***%***/, Lights[1]->GetDiffuseColour() };
-	
+	D3DXVECTOR3 DiffuseLightColours[NO_OF_LIGHTS] = {  /***%***/ Lights[0]->GetDiffuseColour(), PulsingLightColour, Lights[2]->GetDiffuseColour() };
+	D3DXVECTOR3 SpecularLightColours[NO_OF_LIGHTS] = { Lights[0]->GetSpecularColour(), PulsingLightColour, Lights[2]->GetSpecularColour() };
+
 	for (int i = 0; i < NO_OF_LIGHTS; i++)
 	{
-		Lights[i]->LightRender(LightColours[i]);
+		Lights[i]->LightRender(DiffuseLightColours[i], SpecularLightColours[i]);
 	}
 	
 	AmbientLight->LightRender();
@@ -819,10 +718,13 @@ void RenderScene()
 	}
 
 	// Render light models
+	
 	// Light 0
-	Lights[0]->ModelRender(PulsingLightColour);	
+	Lights[0]->ModelRender(Lights[0]->GetDiffuseColour());
 	// Light 1
-	Lights[1]->ModelRender(Lights[1]->GetDiffuseColour());
+	Lights[1]->ModelRender(PulsingLightColour);
+	// Light 2
+	Lights[2]->ModelRender(Lights[0]->GetDiffuseColour());
 
 	// Display the Scene
 

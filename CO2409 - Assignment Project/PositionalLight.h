@@ -22,12 +22,14 @@ private:
 	float m_SpecularPower;
 	bool m_IsStationary;
 
-	ID3D10EffectVectorVariable* m_ColourVar;
+	ID3D10EffectVectorVariable* m_DiffuseColourVar;
+	ID3D10EffectVectorVariable* m_SpecularColourVar;
 	ID3D10EffectVectorVariable* m_PositionVar;
 	ID3D10EffectScalarVariable* m_SpecularPowerVar;
 
 public:
-	void SetColourVar(ID3D10EffectVectorVariable* colourVar);
+	void SetDiffuseColourVar(ID3D10EffectVectorVariable* colourVar);
+	void SetSpecularColourVar(ID3D10EffectVectorVariable* colourVar);
 	void SetPositionVar(ID3D10EffectVectorVariable* positionVar);
 	void SetSpecularPowerVar(ID3D10EffectScalarVariable* specularPowerVar);
 
@@ -90,14 +92,20 @@ public:
 	{
 		m_Model.SetScale(scale);
 	}
+	void SetRotation(D3DXVECTOR3 rotation)
+	{
+		m_Model.SetRotation(rotation);
+	}
 
 	// Other
-	bool LoadModel(const string& fileName, CTechnique* shaderCode, bool tangents = false);
+	bool LoadModel(const string& fileName, CTechnique* shaderCode);
+
+	void SetTexture(CTexture* texture);
 
 	void UpdateMatrix();								//Call model update matrix
 
 
-	void LightRender(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		
+	void LightRender(D3DXVECTOR3 diffuseColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f), D3DXVECTOR3 specularColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		
 	void ModelRender(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		//Call model render
 };
 

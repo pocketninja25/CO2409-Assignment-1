@@ -1,8 +1,11 @@
 #include "PositionalLight.h"
-
-void CPositionalLight::SetColourVar(ID3D10EffectVectorVariable* colourVar)
+void CPositionalLight::SetDiffuseColourVar(ID3D10EffectVectorVariable* colourVar)
 {
-	m_ColourVar = colourVar;
+	m_DiffuseColourVar = colourVar;
+}
+void CPositionalLight::SetSpecularColourVar(ID3D10EffectVectorVariable* colourVar)
+{
+	m_SpecularColourVar = colourVar;
 }
 void CPositionalLight::SetPositionVar(ID3D10EffectVectorVariable* positionVar)
 {
@@ -27,9 +30,14 @@ CPositionalLight::~CPositionalLight()
 {
 }
 
-bool CPositionalLight::LoadModel(const string& fileName, CTechnique* shaderCode, bool tangents)
+bool CPositionalLight::LoadModel(const string& fileName, CTechnique* shaderCode)
 {
-	return m_Model.Load(fileName, shaderCode, tangents);
+	return m_Model.Load(fileName, shaderCode);
+}
+
+void CPositionalLight::SetTexture(CTexture* texture)
+{
+	m_Model.SetTexture(texture);
 }
 
 void CPositionalLight::UpdateMatrix()	//Call model update matrix
@@ -37,9 +45,10 @@ void CPositionalLight::UpdateMatrix()	//Call model update matrix
 	m_Model.UpdateMatrix();
 }
 
-void CPositionalLight::LightRender(D3DXVECTOR3 colour)
+void CPositionalLight::LightRender(D3DXVECTOR3 diffuseColour, D3DXVECTOR3 specularColour)
 {
-	m_ColourVar->SetRawValue(colour, 0, sizeof(D3DXVECTOR3));
+	m_DiffuseColourVar->SetRawValue(diffuseColour, 0, sizeof(D3DXVECTOR3));
+	m_SpecularColourVar->SetRawValue(specularColour, 0, sizeof(D3DXVECTOR3));
 	m_PositionVar->SetRawValue(m_Model.GetPosition(), 0, sizeof(D3DXVECTOR3));
 	m_SpecularPowerVar->SetFloat(m_SpecularPower);
 }

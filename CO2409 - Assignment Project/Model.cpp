@@ -91,8 +91,11 @@ void CModel::ReleaseResources()
 // models will load but will have parts missing. May optionally request for tangents to be created for the model (for normal or parallax mapping)
 // We need to pass an example technique that the model will use to help DirectX understand how to connect this data with the vertex shaders
 // Returns true if the load was successful
-bool CModel::Load( const string& fileName, CTechnique* exampleTechnique, bool tangents /*= false*/ ) // The commented out bit is the default parameter (can't write it here, only in the declaration)
+bool CModel::Load( const string& fileName, CTechnique* exampleTechnique) // The commented out bit is the default parameter (can't write it here, only in the declaration)
 {
+	//Whether or not the model will load tangents is based on its current texture (we call the function to check if normals are supported by the texture)
+	bool tangents = this->UseTangents();
+
 	// Release any existing geometry in this object
 	ReleaseResources();
 
@@ -230,7 +233,12 @@ bool CModel::Load( const string& fileName, CTechnique* exampleTechnique, bool ta
 // Check if the models texture supports normals (and therefore needs tangents)
 bool CModel::UseTangents()
 {
-	return m_ModelTexture->HasNormals();
+	//If this model has a texture then interrogate it to find out if it uses normals, otherwise return false
+	if (m_ModelTexture)
+	{
+		return m_ModelTexture->HasNormals();
+	}
+	return false;
 }
 
 // Update the world matrix of the model from its position, rotation and scaling

@@ -56,7 +56,6 @@ private:
 	ID3D10Buffer*            m_IndexBuffer;
 	unsigned int             m_NumIndices;
 
-
 	//---------------
 	// Render data
 
@@ -67,7 +66,6 @@ private:
 
 	//Technique change variables
 	string m_FileName;
-
 
 	//--------------
 	// Render effect variables
@@ -82,11 +80,13 @@ private:
 	unsigned int m_CurrentTextureIndex;
 	unsigned int m_CurrentTechniqueIndex;
 
-/////////////////////////////
-// Public member functions
 public:
+	//Static data members
 	static vector<CTexture*> m_TextureList;
 	static vector<CTechnique*> m_TechniqueList;
+
+/////////////////////////////
+// Public member functions
 
 	static void SetMatrixShaderVariable(ID3D10EffectMatrixVariable* matrixVar);
 	static void SetColourShaderVariable(ID3D10EffectVectorVariable* colourVar);
@@ -102,7 +102,6 @@ public:
 
 	// Release resources used by model
 	void ReleaseResources();
-
 
 	/////////////////////////////
 	// Data access
@@ -151,7 +150,7 @@ public:
 	{
 		if (renderTechnique->IsCompatible(m_ModelTexture))	//First check that the new technique and this models texture are compatible
 		{
-			return Load(m_FileName, renderTechnique, UseTangents());
+			return Load(m_FileName, renderTechnique);
 		}
 		// Have not returned yet must have failed the if statement
 		return false;
@@ -168,7 +167,7 @@ public:
 	// models will load but will have parts missing. May optionally request for tangents to be created for the model (for normal or parallax mapping)
 	// We need to pass an example technique that the model will use to help DirectX understand how to connect this data with the vertex shaders
 	// Returns true if the load was successful
-	bool Load( const string& fileName, CTechnique* shaderCode, bool tangents = false );
+	bool Load( const string& fileName, CTechnique* shaderCode );
 
 
 	/////////////////////////////
