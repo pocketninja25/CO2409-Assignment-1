@@ -326,6 +326,7 @@ bool InitScene()
 	CTexture* LightTexture = new CTexture();
 	CTexture* ThunderboltTexture = new CTexture();
 	CTexture* FlamesTexture = new CTexture();
+		
 
 	// Push Texture objects onto texture list
 	CModel::m_TextureList.push_back(StoneTexture);
@@ -341,6 +342,7 @@ bool InitScene()
 	CModel::m_TextureList.push_back(ThunderboltTexture);
 	CModel::m_TextureList.push_back(FlamesTexture);
 
+	
 	// Load Texture maps from file and set other texture variables
 	if (!StoneTexture->LoadDiffSpecMap(TEXT("StoneDiffuseSpecular.dds")))		return false;
 	if (!StoneTexture->LoadCelGradient(TEXT("CelGradient.png")))				return false;
@@ -391,11 +393,13 @@ bool InitScene()
 	Troll1Texture->SetOutlineThickness(0.035f);
 		
 	if (!ThunderboltTexture->LoadDiffSpecMap(TEXT("thdbolt.jpg")))				return false;
+		
 	if (!ThunderboltTexture->LoadCelGradient(TEXT("CelGradient.png")))			return false;
 
 	if (!LightTexture->LoadDiffSpecMap(TEXT("Flare.jpg")))						return false;
 
 	if (!FlamesTexture->LoadDiffSpecMap(TEXT("flames4.png")))					return false;
+		
 
 	// Model initialisation
 
@@ -414,7 +418,8 @@ bool InitScene()
 	g_Models[4]->SetTexture(Troll1Texture);
 	g_Models[5]->SetTexture(BrainTexture);
 	g_Models[6]->SetTexture(ThunderboltTexture);
-
+		
+	
 	// Set Model Colours
 	
 	// Constant colours used for models in initial shaders
@@ -430,8 +435,9 @@ bool InitScene()
 	g_Models[3]->SetColour(Yellow);
 	g_Models[4]->SetColour(Black);
 	g_Models[5]->SetColour(Red);
-	g_Models[6]->SetColour(Yellow);
+	g_Models[6]->SetColour(Yellow);	
 
+	
 	// Set Render Techniques and load models
 
 	// The model class can load ".X" files. It encapsulates (i.e. hides away from this code) the file loading/parsing and creation of vertex/index buffers
@@ -442,8 +448,9 @@ bool InitScene()
 	if (!g_Models[3]->Load(	"Sphere.x", WiggleAndScrollTechnique	))	return false;		
 	if (!g_Models[4]->Load(	"Troll.x",	CelShadingTechnique			))	return false;
 	if (!g_Models[5]->Load(	"Hills.x",	ParallaxOutlinedTechnique	))	return false;
-	if (!g_Models[6]->Load("A10Thunderbolt.x", PixelLightingTechnique)) return false;
-
+	if (!g_Models[6]->Load("A10Thunderbolt.x", PixelLitOutlinedTechnique)) return false;
+	
+	
 	// Set Initial Positions/Scales of models
 	g_Models[0]->SetPosition(D3DXVECTOR3(0.0f, 10.0f, 0.0f));
 
@@ -463,7 +470,7 @@ bool InitScene()
 	g_Models[6]->SetScale(5.0f);
 	g_Models[6]->SetRotation(D3DXVECTOR3(ToRadians(15.0f), ToRadians(120.0f), 0.0f));
 	
-	
+
 	// Load/Create lights and light models
 
 	AmbientLight =	new CAmbientLight(D3DXVECTOR3(0.2f, 0.2f, 0.2f));
@@ -509,8 +516,8 @@ bool InitScene()
 	Lights[2]->SetScale(2.0f);
 	Lights[2]->SetRotation(D3DXVECTOR3(ToRadians(-15.0f), ToRadians(300.0f), 0.0f));
 	Lights[2]->SetIsStationary(true);
-	Lights[2]->SetDiffuseColour(	D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 60.0f);
-	Lights[2]->SetSpecularColour(	D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 15.0f);
+	Lights[2]->SetDiffuseColour(D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 20.0f);
+	Lights[2]->SetSpecularColour(D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 15.0f);
 	Lights[2]->SetSpecularPower(128.0f);
 
 	// Update the matrices of lights that will be stationary (dont need to update them in update scene) 
@@ -532,54 +539,55 @@ bool InitScene()
 	Lights[2]->SetTexture(FlamesTexture);
 	if (!Lights[2]->LoadModel("FlameShell.x", AlphaCutoutTechnique)) return false;
 
+
 	return true;
 }
 
 void SwitchTexturesAndRenderModes()
 {
-	if (KeyHit(Key_1))
+	if (KeyHit(Key_1))	//Set all to plain model colour
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
 			g_Models[i]->SetRenderTechnique(PlainColourTechnique);
 		}
 	}
-	if (KeyHit(Key_2))
+	if (KeyHit(Key_2))	//Set all to basic textured (No lighting)
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
 			g_Models[i]->SetRenderTechnique(DiffuseTexturedTechnique);
 		}
 	}
-	if (KeyHit(Key_3))
+	if (KeyHit(Key_3))	//Set all to wiggle and scroll texture
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
 			g_Models[i]->SetRenderTechnique(WiggleAndScrollTechnique);
 		}
 	}
-	if (KeyHit(Key_4))
+	if (KeyHit(Key_4))	//Set all to have per pixel lighting (no bump maps)
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
 			g_Models[i]->SetRenderTechnique(PixelLightingTechnique);
 		}
 	}
-	if (KeyHit(Key_5))
+	if (KeyHit(Key_5))	//Set all to have normal mapping (no parallax)
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
 			g_Models[i]->SetRenderTechnique(NormalMapTechnique);
 		}
 	}
-	if (KeyHit(Key_6))
+	if (KeyHit(Key_6))	//Set all to have parallax mapping
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
 			g_Models[i]->SetRenderTechnique(ParallaxMapTechnique);
 		}
 	}
-	if (KeyHit(Key_7))
+	if (KeyHit(Key_7))	//Set all to have Parallax mapping (if supported) and/or an outline
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
@@ -594,7 +602,7 @@ void SwitchTexturesAndRenderModes()
 			}
 		}
 	}
-	if (KeyHit(Key_8))
+	if (KeyHit(Key_8))	//Set all to have black and white noire style shading and an outline (with parallax mapping if supported)
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
@@ -724,7 +732,7 @@ void RenderScene()
 	// Light 1
 	Lights[1]->ModelRender(PulsingLightColour);
 	// Light 2
-	Lights[2]->ModelRender(Lights[0]->GetDiffuseColour());
+	Lights[2]->ModelRender(Lights[2]->GetDiffuseColour());
 
 	// Display the Scene
 

@@ -283,7 +283,7 @@ float4 ScrollAndTint(VS_BASIC_OUTPUT vOut) : SV_Target
 	return combinedColour;
 }
 
-float4 DiffuseSpecular(VS_LIGHTING_OUTPUT vOut) : SV_Target
+float4 PixelLighting(VS_LIGHTING_OUTPUT vOut) : SV_Target
 {
 	//Initialise Lighting Array
 	LIGHT_DATA Lights[NO_OF_LIGHTS];
@@ -379,13 +379,13 @@ float4 NormalMapLighting(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 	// The world normal is now the version from the file rather than the automatically generated one
 	//This means we can use the ordinary diffuse/specular lighting equations/shader to perform the lighting calculation
 	
-	// Create a VS_LIGHTING_OUTPUT to send to DiffuseSpecular to perform the relevant lighting calculations
+	// Create a VS_LIGHTING_OUTPUT to send to PixelLighting to perform the relevant lighting calculations
 	VS_LIGHTING_OUTPUT diffSpecOut;
 	diffSpecOut.ProjPos = vOut.ProjPos;
 	diffSpecOut.WorldPos = vOut.WorldPos;
 	diffSpecOut.WorldNormal = worldNormal;
 	diffSpecOut.UV = vOut.UV;
-	return DiffuseSpecular(diffSpecOut);	//Return the value given by the DiffuseSpecular pixel shader
+	return PixelLighting(diffSpecOut);	//Return the value given by the PixelLighting pixel shader
 }
 
 float4 ParallaxMapLighting(VS_NORMALMAP_OUTPUT vOut) : SV_Target
@@ -440,16 +440,16 @@ float4 ParallaxMapLighting(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 	// The world normal is now the version from the file rather than the automatically generated one
 	//This means we can use the ordinary diffuse/specular lighting equations/shader to perform the lighting calculation
 
-	// Create a VS_LIGHTING_OUTPUT to send to DiffuseSpecular to perform the relevant lighting calculations
+	// Create a VS_LIGHTING_OUTPUT to send to PixelLighting to perform the relevant lighting calculations
 	VS_LIGHTING_OUTPUT diffSpecOut;
 	diffSpecOut.ProjPos = vOut.ProjPos;
 	diffSpecOut.WorldPos = vOut.WorldPos;
 	diffSpecOut.WorldNormal = worldNormal;
 	diffSpecOut.UV = offsetTexCoord;
-	return DiffuseSpecular(diffSpecOut);	//Return the value given by the DiffuseSpecular pixel shader
+	return PixelLighting(diffSpecOut);	//Return the value given by the PixelLighting pixel shader
 }
 
-float4 PixelLitDiffuseMap(VS_LIGHTING_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit just indicates that the returned float4 colour goes to the render target (i.e. it's a colour to render)
+float4 ComicShade(VS_LIGHTING_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit just indicates that the returned float4 colour goes to the render target (i.e. it's a colour to render)
 {
 	// Can't guarantee the normals are length 1, interpolation from vertex shader to pixel shader will rescale normals
 	float3 worldNormal = normalize(vOut.WorldNormal);
@@ -549,7 +549,7 @@ float4 CutoutTextured(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	if (colour.a < 0.5f)
 		discard;
 
-	return colour * 2.0f;
+	return colour;
 }
 
 float4 CelParallaxMapLighting(VS_NORMALMAP_OUTPUT vOut) : SV_Target
@@ -604,13 +604,13 @@ float4 CelParallaxMapLighting(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 	// The world normal is now the version from the file rather than the automatically generated one
 	//This means we can use the ordinary diffuse/specular lighting equations/shader to perform the lighting calculation
 
-	// Create a VS_LIGHTING_OUTPUT to send to DiffuseSpecular to perform the relevant lighting calculations
+	// Create a VS_LIGHTING_OUTPUT to send to PixelLighting to perform the relevant lighting calculations
 	VS_LIGHTING_OUTPUT diffSpecOut;
 	diffSpecOut.ProjPos = vOut.ProjPos;
 	diffSpecOut.WorldPos = vOut.WorldPos;
 	diffSpecOut.WorldNormal = worldNormal;
 	diffSpecOut.UV = offsetTexCoord;
-	return PixelLitDiffuseMap(diffSpecOut);	//Return the value given by the DiffuseSpecular pixel shader
+	return ComicShade(diffSpecOut);	//Return the value given by the PixelLighting pixel shader
 }
 
 //-------------------------------------------------------------------------------------
@@ -643,6 +643,13 @@ BlendState AdditiveBlending // Additive blending is used for lighting effects
 	BlendEnable[0] = TRUE;
 	SrcBlend = ONE;
 	DestBlend = ONE;
+	BlendOp = ADD;
+};
+BlendState MultiplicativeBlending
+{
+	BlendEnable[0] = TRUE;
+	SrcBlend = DEST_COLOR;
+	DestBlend = ZERO;
 	BlendOp = ADD;
 };
 
@@ -714,7 +721,7 @@ technique10 PixDiffSpec
 	{
 		SetVertexShader(CompileShader(vs_4_0, PixelLightingTransform()));
 		SetGeometryShader(NULL);
-		SetPixelShader(CompileShader(ps_4_0, DiffuseSpecular()));
+		SetPixelShader(CompileShader(ps_4_0, PixelLighting()));
 
 		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
 		SetRasterizerState(CullBack);
@@ -770,7 +777,7 @@ technique10 CelShading
 	{
 		SetVertexShader(CompileShader(vs_4_0, PixelLightingTransform()));
 		SetGeometryShader(NULL);
-		SetPixelShader(CompileShader(ps_4_0, PixelLitDiffuseMap()));
+		SetPixelShader(CompileShader(ps_4_0, ComicShade()));
 
 		// Return to standard culling (draw only the outside of the model)
 		SetRasterizerState(CullBack);
@@ -854,7 +861,7 @@ technique10 PixelLitOutlined
 	{
 		SetVertexShader(CompileShader(vs_4_0, PixelLightingTransform()));
 		SetGeometryShader(NULL);
-		SetPixelShader(CompileShader(ps_4_0, DiffuseSpecular()));
+		SetPixelShader(CompileShader(ps_4_0, PixelLighting()));
 
 		// Switch off blending states
 		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
@@ -876,7 +883,6 @@ technique10 PixelLitOutlined
 	}
 }
 
-
 technique10 AlphaCutout
 {
 	pass P0
@@ -885,7 +891,7 @@ technique10 AlphaCutout
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_4_0, CutoutTextured()));
 
-		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetBlendState(AdditiveBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
 		SetRasterizerState(CullNone);
 		SetDepthStencilState(DepthWritesOn, 0);
 	}
