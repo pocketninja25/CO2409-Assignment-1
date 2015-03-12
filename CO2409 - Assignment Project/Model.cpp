@@ -16,7 +16,7 @@ ID3D10EffectMatrixVariable* CModel::m_MatrixVar = NULL;
 
 ID3D10EffectVectorVariable* CModel::m_ColourVar = NULL;
 
-vector<CTexture*>			CModel::m_TextureList = vector<CTexture*>();
+vector<CMaterial*>			CModel::m_MaterialList = vector<CMaterial*>();
 vector<CTechnique*>			CModel::m_TechniqueList= vector<CTechnique*>();
 
 
@@ -56,12 +56,12 @@ CModel::CModel( D3DXVECTOR3 position, D3DXVECTOR3 rotation, float scale, D3DXVEC
 	m_HasGeometry = false;
 
 	//Initialise the texture variable to NULL
-	m_ModelTexture = NULL;
+	m_ModelMaterial = NULL;
 
 	m_Colour = colour;
 
 	m_CurrentTechniqueIndex = 0;
-	m_CurrentTextureIndex = 0;
+	m_CurrentMaterialIndex = 0;
 }
 
 // Model destructor
@@ -234,9 +234,9 @@ bool CModel::Load( const string& fileName, CTechnique* exampleTechnique) // The 
 bool CModel::UseTangents()
 {
 	//If this model has a texture then interrogate it to find out if it uses normals, otherwise return false
-	if (m_ModelTexture)
+	if (m_ModelMaterial)
 	{
-		return m_ModelTexture->HasNormals();
+		return m_ModelMaterial->HasNormals();
 	}
 	return false;
 }
@@ -317,9 +317,9 @@ void CModel::Render()
 	{
 		m_MatrixVar->SetMatrix((float*)GetWorldMatrix());
 	}
-	if (m_ModelTexture)	//Set the texture (if the model has a texture and the texture is valid)
+	if (m_ModelMaterial)	//Set the texture (if the model has a texture and the texture is valid)
 	{
-		m_ModelTexture->SendToShader();
+		m_ModelMaterial->SendToShader();
 	}
 	if (m_ColourVar)
 	{

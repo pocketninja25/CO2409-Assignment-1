@@ -35,9 +35,9 @@ bool CPositionalLight::LoadModel(const string& fileName, CTechnique* shaderCode)
 	return m_Model.Load(fileName, shaderCode);
 }
 
-void CPositionalLight::SetTexture(CTexture* texture)
+void CPositionalLight::SetTexture(CMaterial* material)
 {
-	m_Model.SetTexture(texture);
+	m_Model.SetTexture(material);
 }
 
 void CPositionalLight::UpdateMatrix()	//Call model update matrix

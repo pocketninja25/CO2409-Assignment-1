@@ -14,7 +14,7 @@ using namespace std;
 #include <d3d10.h>
 #include <d3dx10.h>
 #include "Input.h"
-#include "Texture.h"
+#include "Material.h"
 #include "Technique.h"
 
 #include <vector>
@@ -62,7 +62,7 @@ private:
 	//The render technique for this model
 	CTechnique* m_RenderTechnique;
 	//Pointer to texture
-	CTexture* m_ModelTexture;
+	CMaterial* m_ModelMaterial;
 
 	//Technique change variables
 	string m_FileName;
@@ -77,12 +77,12 @@ private:
 
 	D3DXVECTOR3 m_Colour;
 
-	unsigned int m_CurrentTextureIndex;
+	unsigned int m_CurrentMaterialIndex;
 	unsigned int m_CurrentTechniqueIndex;
 
 public:
 	//Static data members
-	static vector<CTexture*> m_TextureList;
+	static vector<CMaterial*> m_MaterialList;
 	static vector<CTechnique*> m_TechniqueList;
 
 /////////////////////////////
@@ -142,13 +142,13 @@ public:
 	{
 		m_Scale = D3DXVECTOR3( scale, scale, scale );
 	}
-	void SetTexture(CTexture* texture)
+	void SetTexture(CMaterial* material)
 	{
-		m_ModelTexture = texture;
+		m_ModelMaterial = material;
 	}
 	bool SetRenderTechnique(CTechnique* renderTechnique)
 	{
-		if (renderTechnique->IsCompatible(m_ModelTexture))	//First check that the new technique and this models texture are compatible
+		if (renderTechnique->IsCompatible(m_ModelMaterial))	//First check that the new technique and this models texture are compatible
 		{
 			return Load(m_FileName, renderTechnique);
 		}

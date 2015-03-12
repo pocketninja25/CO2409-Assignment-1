@@ -241,7 +241,7 @@
     <ClInclude Include="Model.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Technique.h" />
-    <ClInclude Include="Texture.h" />
+    <ClInclude Include="Material.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AmbientLight.cpp" />
@@ -268,7 +268,7 @@
     <ClCompile Include="GraphicsAssign1.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="Technique.cpp" />
-    <ClCompile Include="Texture.cpp" />
+    <ClCompile Include="Material.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="GraphicsAssign1.fx" />

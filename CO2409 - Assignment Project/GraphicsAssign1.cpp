@@ -45,7 +45,7 @@
 #include "AmbientLight.h"
 #include "Camera.h"				// Camera class - encapsulates the camera's view and projection matrix
 #include "Input.h"				// Input functions - not DirectX
-#include "Texture.h"
+#include "Material.h"
 #include "ColourConversion.h"
 #include "Technique.h"
 //--------------------------------------------------------------------------------------
@@ -276,11 +276,11 @@ bool LoadEffectFile()
 	ProjMatrixVar = Effect->GetVariableByName("ProjMatrix")->AsMatrix();
 
 	// Texture data
-	CTexture::SetDiffuseSpecularShaderVariable( Effect->GetVariableByName("DiffuseMap")->AsShaderResource());
-	CTexture::SetNormalMapShaderVariable(Effect->GetVariableByName("NormalMap")->AsShaderResource());
-	CTexture::SetParallaxDepthShaderVariable(Effect->GetVariableByName("ParallaxDepth")->AsScalar());
-	CTexture::SetCelGradientShaderVariable(Effect->GetVariableByName("CelGradient")->AsShaderResource());
-	CTexture::SetOutlineThicknessShaderVariable(Effect->GetVariableByName("OutlineThickness")->AsScalar());
+	CMaterial::SetDiffuseSpecularShaderVariable( Effect->GetVariableByName("DiffuseMap")->AsShaderResource());
+	CMaterial::SetNormalMapShaderVariable(Effect->GetVariableByName("NormalMap")->AsShaderResource());
+	CMaterial::SetParallaxDepthShaderVariable(Effect->GetVariableByName("ParallaxDepth")->AsScalar());
+	CMaterial::SetCelGradientShaderVariable(Effect->GetVariableByName("CelGradient")->AsShaderResource());
+	CMaterial::SetOutlineThicknessShaderVariable(Effect->GetVariableByName("OutlineThickness")->AsScalar());
 
 	// Camera data
 	CameraPositionVar = Effect->GetVariableByName("CameraPos")->AsVector();
@@ -314,33 +314,33 @@ bool InitScene()
 	// Texture initialisation
 
 	// Create Texture objects
-	CTexture* StoneTexture = new CTexture();
-	CTexture* WoodTexture = new CTexture();
-	CTexture* GrassTexture = new CTexture();
-	CTexture* BrainTexture = new CTexture();
-	CTexture* PatternTexture = new CTexture();
-	CTexture* CobbleTexture = new CTexture();
-	CTexture* TechTexture = new CTexture();
-	CTexture* WallTexture = new CTexture();
-	CTexture* Troll1Texture = new CTexture();
-	CTexture* LightTexture = new CTexture();
-	CTexture* ThunderboltTexture = new CTexture();
-	CTexture* FlamesTexture = new CTexture();
+	CMaterial* StoneTexture			= new CMaterial();
+	CMaterial* WoodTexture			= new CMaterial();
+	CMaterial* GrassTexture			= new CMaterial();
+	CMaterial* BrainTexture			= new CMaterial();
+	CMaterial* PatternTexture		= new CMaterial();
+	CMaterial* CobbleTexture		= new CMaterial();
+	CMaterial* TechTexture			= new CMaterial();
+	CMaterial* WallTexture			= new CMaterial();
+	CMaterial* Troll1Texture		= new CMaterial();
+	CMaterial* LightTexture			= new CMaterial();
+	CMaterial* ThunderboltTexture	= new CMaterial();
+	CMaterial* FlamesTexture		= new CMaterial();
 		
 
 	// Push Texture objects onto texture list
-	CModel::m_TextureList.push_back(StoneTexture);
-	CModel::m_TextureList.push_back(WoodTexture);
-	CModel::m_TextureList.push_back(GrassTexture);
-	CModel::m_TextureList.push_back(BrainTexture);
-	CModel::m_TextureList.push_back(PatternTexture);
-	CModel::m_TextureList.push_back(CobbleTexture);
-	CModel::m_TextureList.push_back(TechTexture);
-	CModel::m_TextureList.push_back(WallTexture);
-	CModel::m_TextureList.push_back(Troll1Texture);
-	CModel::m_TextureList.push_back(LightTexture);
-	CModel::m_TextureList.push_back(ThunderboltTexture);
-	CModel::m_TextureList.push_back(FlamesTexture);
+	CModel::m_MaterialList.push_back(StoneTexture);
+	CModel::m_MaterialList.push_back(WoodTexture);
+	CModel::m_MaterialList.push_back(GrassTexture);
+	CModel::m_MaterialList.push_back(BrainTexture);
+	CModel::m_MaterialList.push_back(PatternTexture);
+	CModel::m_MaterialList.push_back(CobbleTexture);
+	CModel::m_MaterialList.push_back(TechTexture);
+	CModel::m_MaterialList.push_back(WallTexture);
+	CModel::m_MaterialList.push_back(Troll1Texture);
+	CModel::m_MaterialList.push_back(LightTexture);
+	CModel::m_MaterialList.push_back(ThunderboltTexture);
+	CModel::m_MaterialList.push_back(FlamesTexture);
 
 	
 	// Load Texture maps from file and set other texture variables
@@ -513,7 +513,7 @@ bool InitScene()
 	Lights[1]->SetSpecularPower(64.0f);
 
 	Lights[2]->SetPosition(D3DXVECTOR3(-95.0f, 22.5f, 26.0f));
-	Lights[2]->SetScale(2.0f);
+	Lights[2]->SetScale(4.0f);
 	Lights[2]->SetRotation(D3DXVECTOR3(ToRadians(-15.0f), ToRadians(300.0f), 0.0f));
 	Lights[2]->SetIsStationary(true);
 	Lights[2]->SetDiffuseColour(D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 20.0f);
@@ -766,10 +766,10 @@ void ReleaseResources()
 	}
 	
 	// Deallocate texture data
-	while (!CModel::m_TextureList.empty())
+	while (!CModel::m_MaterialList.empty())
 	{
-		if (CModel::m_TextureList.back()) { delete CModel::m_TextureList.back(); }
-		CModel::m_TextureList.pop_back();
+		if (CModel::m_MaterialList.back()) { delete CModel::m_MaterialList.back(); }
+		CModel::m_MaterialList.pop_back();
 	}
 
 	// Empty the technique list

@@ -2,7 +2,7 @@
 #define TECHNIQUE_H_INCLUDED
 
 #include "Defines.h"
-#include "Texture.h"
+#include "Material.h"
 
 class CTechnique
 {
@@ -21,7 +21,7 @@ public:
 		return m_Technique;
 	}
 
-	bool IsCompatible(CTexture* tex);
+	bool IsCompatible(CMaterial* material);
 };
 
 #endif

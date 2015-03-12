@@ -100,7 +100,7 @@ public:
 	// Other
 	bool LoadModel(const string& fileName, CTechnique* shaderCode);
 
-	void SetTexture(CTexture* texture);
+	void SetTexture(CMaterial* texture);
 
 	void UpdateMatrix();								//Call model update matrix
 

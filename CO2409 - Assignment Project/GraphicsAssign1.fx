@@ -172,8 +172,8 @@ VS_BASIC_OUTPUT WiggleTransform(VS_BASIC_INPUT vIn)
 
 	//Make the vertices wiggle
 	worldPos.x += cos(modelPos.z + Wiggle) * 0.15f;
-	worldPos.y += cos(modelPos.y + Wiggle) * 0.15f;
-	worldPos.z += cos(modelPos.x + Wiggle) * 0.15f;
+	worldPos.y += cos(modelPos.x + Wiggle) * 0.15f;
+	worldPos.z += cos(modelPos.y + Wiggle) * 0.15f;
 	//*****************************
 
 	vOut.ProjPos = mul(worldPos, ViewProjMatrix);
@@ -549,7 +549,7 @@ float4 CutoutTextured(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	if (colour.a < 0.5f)
 		discard;
 
-	return colour;
+	return colour * 0.5f;
 }
 
 float4 CelParallaxMapLighting(VS_NORMALMAP_OUTPUT vOut) : SV_Target
@@ -893,6 +893,6 @@ technique10 AlphaCutout
 
 		SetBlendState(AdditiveBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
 		SetRasterizerState(CullNone);
-		SetDepthStencilState(DepthWritesOn, 0);
+		SetDepthStencilState(DepthWritesOff, 0);
 	}
 }
