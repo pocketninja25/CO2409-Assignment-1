@@ -80,6 +80,8 @@ private:
 	unsigned int m_CurrentMaterialIndex;
 	unsigned int m_CurrentTechniqueIndex;
 
+	unsigned int m_NumElements;
+
 public:
 	//Static data members
 	static vector<CMaterial*> m_MaterialList;
@@ -150,7 +152,14 @@ public:
 	{
 		if (renderTechnique->IsCompatible(m_ModelMaterial))	//First check that the new technique and this models texture are compatible
 		{
-			return Load(m_FileName, renderTechnique);
+			// Given the vertex element list, pass it to DirectX to create a vertex layout. We also need to pass an example of a technique that will
+			// render this model. We will only be able to render this model with techniques that have the same vertex input as the example we use here
+			D3D10_PASS_DESC PassDesc;
+			renderTechnique->GetTechnique()->GetPassByIndex(0)->GetDesc(&PassDesc);
+			g_pd3dDevice->CreateInputLayout(m_VertexElts, m_NumElements, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, &m_VertexLayout);
+
+			m_RenderTechnique = renderTechnique;
+			return true;
 		}
 		// Have not returned yet must have failed the if statement
 		return false;

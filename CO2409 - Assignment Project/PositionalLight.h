@@ -94,6 +94,7 @@ public:
 	void UpdateMatrix();								//Call model update matrix
 
 	void LightRender(D3DXVECTOR3 diffuseColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f), D3DXVECTOR3 specularColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		
+	
 	void ModelRender(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		//Call model render
 };
 

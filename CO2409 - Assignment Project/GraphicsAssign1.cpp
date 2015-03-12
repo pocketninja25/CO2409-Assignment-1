@@ -342,17 +342,18 @@ bool InitScene()
 	CModel::m_MaterialList.push_back(ThunderboltMaterial);
 	CModel::m_MaterialList.push_back(FlamesMaterial);
 
+	
 	// Load Texture maps from file and set other material variables
 	if (!StoneMaterial->LoadDiffSpecMap(TEXT("StoneDiffuseSpecular.dds")))		return false;
 	StoneMaterial->SetSpecularPower(64.0f);
 	if (!StoneMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
 	StoneMaterial->SetOutlineThickness(0.035f);
 
-	if (!WoodMaterial->LoadDiffSpecMap(TEXT("WoodDiffuseSpecular.dds")))			return false;
+	if (!WoodMaterial->LoadDiffSpecMap(TEXT("WoodDiffuseSpecular.dds")))		return false;
 	WoodMaterial->SetSpecularPower(64.0f);
 	if (!WoodMaterial->LoadNormalMap(TEXT("WoodNormal.dds")))					return false;
 	WoodMaterial->SetParallaxDepth(0.08f);
-	if (!WoodMaterial->LoadCelGradient(TEXT("CelGradient.png")))					return false;
+	if (!WoodMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
 	WoodMaterial->SetOutlineThickness(0.035f);
 
 	if (!GrassMaterial->LoadDiffSpecMap(TEXT("GrassDiffuseSpecular.dds")))		return false;
@@ -362,40 +363,40 @@ bool InitScene()
 
 	if (!BrainMaterial->LoadDiffSpecMap(TEXT("BrainDiffuseSpecular.dds")))		return false;
 	BrainMaterial->SetSpecularPower(16.0f);
-	if (!BrainMaterial->LoadNormalMap(TEXT("BrainNormalDepth.dds")))				return false;
+	if (!BrainMaterial->LoadNormalMap(TEXT("BrainNormalDepth.dds")))			return false;
 	BrainMaterial->SetParallaxDepth(0.08f);
 	if (!BrainMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
 	BrainMaterial->SetOutlineThickness(0.035f);
 
 	if (!PatternMaterial->LoadDiffSpecMap(TEXT("PatternDiffuseSpecular.dds")))	return false;
 	PatternMaterial->SetSpecularPower(8.0f);
-	if (!PatternMaterial->LoadNormalMap(TEXT("PatternNormalDepth.dds")))			return false;
+	if (!PatternMaterial->LoadNormalMap(TEXT("PatternNormalDepth.dds")))		return false;
 	PatternMaterial->SetParallaxDepth(0.08f);
 	if (!PatternMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
 	PatternMaterial->SetOutlineThickness(0.035f);
 
-	if (!CobbleMaterial->LoadDiffSpecMap(TEXT("CobbleDiffuseSpecular.dds")))		return false;
+	if (!CobbleMaterial->LoadDiffSpecMap(TEXT("CobbleDiffuseSpecular.dds")))	return false;
 	CobbleMaterial->SetSpecularPower(64.0f);
 	if (!CobbleMaterial->LoadNormalMap(TEXT("CobbleNormalDepth.dds")))			return false;
 	CobbleMaterial->SetParallaxDepth(0.08f);
 	if (!CobbleMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
 	CobbleMaterial->SetOutlineThickness(0.035f);
 
-	if (!TechMaterial->LoadDiffSpecMap(TEXT("TechDiffuseSpecular.dds")))			return false;
+	if (!TechMaterial->LoadDiffSpecMap(TEXT("TechDiffuseSpecular.dds")))		return false;
 	TechMaterial->SetSpecularPower(64.0f);
 	if (!TechMaterial->LoadNormalMap(TEXT("TechNormalDepth.dds")))				return false;
 	TechMaterial->SetParallaxDepth(0.08f);
-	if (!TechMaterial->LoadCelGradient(TEXT("CelGradient.png")))					return false;
+	if (!TechMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
 	TechMaterial->SetOutlineThickness(0.035f);
 
-	if (!WallMaterial->LoadDiffSpecMap(TEXT("WallDiffuseSpecular.dds")))			return false;
+	if (!WallMaterial->LoadDiffSpecMap(TEXT("WallDiffuseSpecular.dds")))		return false;
 	WallMaterial->SetSpecularPower(128.0f);
 	if (!WallMaterial->LoadNormalMap(TEXT("WallNormalDepth.dds")))				return false;
 	WallMaterial->SetParallaxDepth(0.08f);
-	if (!WallMaterial->LoadCelGradient(TEXT("CelGradient.png")))					return false;
+	if (!WallMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
 	WallMaterial->SetOutlineThickness(0.035f);
 
-	if (!Troll1Material->LoadDiffSpecMap(TEXT("Troll1DiffuseSpecular.dds")))		return false;
+	if (!Troll1Material->LoadDiffSpecMap(TEXT("Troll3DiffuseSpecular.dds")))	return false;
 	Troll1Material->SetSpecularPower(16.0f);
 	if (!Troll1Material->LoadCelGradient(TEXT("CelGradient.png")))				return false;
 	Troll1Material->SetOutlineThickness(0.035f);
@@ -410,6 +411,7 @@ bool InitScene()
 	if (!FlamesMaterial->LoadDiffSpecMap(TEXT("flames4.png")))					return false;
 	FlamesMaterial->SetSpecularPower(64.0f);
 
+	
 	// Model initialisation
 
 	// Load/Create models
@@ -488,6 +490,7 @@ bool InitScene()
 	{
 		Lights[i] = new CPositionalLight;
 	}
+
 	// Set light shader variables
 
 	//Light Colours

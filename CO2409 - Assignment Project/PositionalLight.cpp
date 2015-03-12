@@ -1,4 +1,5 @@
 #include "PositionalLight.h"
+
 void CPositionalLight::SetDiffuseColourVar(ID3D10EffectVectorVariable* colourVar)
 {
 	m_DiffuseColourVar = colourVar;

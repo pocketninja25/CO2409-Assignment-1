@@ -6,7 +6,6 @@
 //	See assignment specification for details
 //--------------------------------------------------------------------------------------
 
-
 //--------------------------------------------------------------------------------------
 // Structures
 //--------------------------------------------------------------------------------------
@@ -98,6 +97,8 @@ float3 CameraPos;
 //-------------------------
 // Lighting Data
 static const unsigned int NO_OF_LIGHTS = 3;	
+
+float3 LightDiffuseColours[NO_OF_LIGHTS];
 
 float3 Light1DiffuseCol;
 float3 Light2DiffuseCol;
@@ -252,6 +253,25 @@ VS_BASIC_OUTPUT ExpandOutline(VS_BASIC_INPUT vIn)
 	return vOut;
 }
 
+//-------------------------------------------------------------------------------------
+// Pixel Shader Component Functions
+//-------------------------------------------------------------------------------------
+
+void AssembleLightData(out LIGHT_DATA Lights[NO_OF_LIGHTS])
+{
+	//Initialise Lighting Array
+	Lights[0].diffuseColour = Light1DiffuseCol;
+	Lights[0].specularColour = Light1SpecularCol;
+	Lights[0].position = Light1Position;
+	Lights[1].diffuseColour = Light2DiffuseCol;
+	Lights[1].specularColour = Light2SpecularCol;
+	Lights[1].position = Light2Position;
+	Lights[2].diffuseColour = Light3DiffuseCol;
+	Lights[2].specularColour = Light3SpecularCol;
+	Lights[2].position = Light3Position;
+
+}
+
 //--------------------------------------------------------------------------------------
 // Pixel Shaders
 //--------------------------------------------------------------------------------------
@@ -286,17 +306,8 @@ float4 ScrollAndTint(VS_BASIC_OUTPUT vOut) : SV_Target
 
 float4 PixelLighting(VS_LIGHTING_OUTPUT vOut) : SV_Target
 {
-	//Initialise Lighting Array
 	LIGHT_DATA Lights[NO_OF_LIGHTS];
-	Lights[0].diffuseColour =	Light1DiffuseCol;
-	Lights[0].specularColour =	Light1SpecularCol;
-	Lights[0].position =		Light1Position;
-	Lights[1].diffuseColour =	Light2DiffuseCol;
-	Lights[1].specularColour =	Light2SpecularCol;	
-	Lights[1].position =		Light2Position;
-	Lights[2].diffuseColour =	Light3DiffuseCol;
-	Lights[2].specularColour =	Light3SpecularCol;
-	Lights[2].position =		Light3Position;
+	AssembleLightData(Lights);
 
 	//*********************************************************************************************
 	// Calculate direction of light and camera
@@ -310,6 +321,8 @@ float4 PixelLighting(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	float3 halfwayNormal = 0.0f;
 	float3 specularLight = 0.0f;
 	
+
+
 	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)	//Perform calculations on lights, one light at a time
 	{
 		LightDirs[i] = Lights[i].position - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate length for attenuated light first)
@@ -454,15 +467,7 @@ float4 ComicShade(VS_LIGHTING_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit
 
 	//Initialise Lighting Array
 	LIGHT_DATA Lights[NO_OF_LIGHTS];
-	Lights[0].diffuseColour = Light1DiffuseCol;
-	Lights[0].specularColour = Light1SpecularCol;
-	Lights[0].position = Light1Position;
-	Lights[1].diffuseColour = Light2DiffuseCol;
-	Lights[1].specularColour = Light2SpecularCol;
-	Lights[1].position = Light2Position;
-	Lights[2].diffuseColour = Light3DiffuseCol;
-	Lights[2].specularColour = Light3SpecularCol;
-	Lights[2].position = Light3Position;
+	AssembleLightData(Lights);
 
 	//*********************************************************************************************
 	// Calculate direction of light and camera

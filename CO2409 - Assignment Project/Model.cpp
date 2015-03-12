@@ -181,6 +181,9 @@ bool CModel::Load( const string& fileName, CTechnique* exampleTechnique) // The 
 	}
 	m_VertexSize = offset;
 
+	// Save the number of elements of the subMesh so that the render technique can be recreated later on
+	m_NumElements = numElts;
+
 	// Given the vertex element list, pass it to DirectX to create a vertex layout. We also need to pass an example of a technique that will
 	// render this model. We will only be able to render this model with techniques that have the same vertex input as the example we use here
 	D3D10_PASS_DESC PassDesc;
@@ -202,7 +205,6 @@ bool CModel::Load( const string& fileName, CTechnique* exampleTechnique) // The 
 	{
 		return false;
 	}
-
 
 	// Create the index buffer - assuming 2-byte (WORD) index data
 	m_NumIndices = static_cast<unsigned int>(subMesh.numFaces) * 3;
