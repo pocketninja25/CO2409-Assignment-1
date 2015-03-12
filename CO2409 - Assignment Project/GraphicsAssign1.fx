@@ -59,7 +59,6 @@ struct LIGHT_DATA
 	float3 diffuseColour;
 	float3 specularColour;
 	float3 position;
-	float specularPower;
 };
 
 //--------------------------------------------------------------------------------------
@@ -76,23 +75,28 @@ float4x4 ViewProjMatrix;
 // Misc
 float Wiggle;
 
+//--------------------------
+// Model Material Data
+
 // A single colour for an entire model - used for light models and the intial basic shader
-float3 ModelColour;
-
+float3		ModelColour;
 // Diffuse texture map (the main texture colour) - may contain specular map in alpha channel
-Texture2D DiffuseMap;
-// Normal map - may contain parralax map in alpha channel
-Texture2D NormalMap;
-
-float ParallaxDepth;
-
+Texture2D	DiffuseMap;
+float		SpecularPower;
+// Normal map - may contain parallax map in alpha channel
+Texture2D	NormalMap;
+float		ParallaxDepth;
 //Gradient for clamping Cel shading colours
 Texture2D CelGradient;
 float OutlineThickness;
 
-//Lighting Data
+//-------------------------
+// Camera Data
+
 float3 CameraPos;
 
+//-------------------------
+// Lighting Data
 static const unsigned int NO_OF_LIGHTS = 3;	
 
 float3 Light1DiffuseCol;
@@ -104,9 +108,6 @@ float3 Light3SpecularCol;
 float3 Light1Position;
 float3 Light2Position;
 float3 Light3Position;
-float  Light1SpecularPower;
-float  Light2SpecularPower;
-float  Light3SpecularPower;
 
 float3 AmbientColour;
 
@@ -290,15 +291,12 @@ float4 PixelLighting(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	Lights[0].diffuseColour =	Light1DiffuseCol;
 	Lights[0].specularColour =	Light1SpecularCol;
 	Lights[0].position =		Light1Position;
-	Lights[0].specularPower =	Light1SpecularPower;
 	Lights[1].diffuseColour =	Light2DiffuseCol;
 	Lights[1].specularColour =	Light2SpecularCol;	
 	Lights[1].position =		Light2Position;
-	Lights[1].specularPower =	Light2SpecularPower;
 	Lights[2].diffuseColour =	Light3DiffuseCol;
 	Lights[2].specularColour =	Light3SpecularCol;
 	Lights[2].position =		Light3Position;
-	Lights[2].specularPower =	Light3SpecularPower;
 
 	//*********************************************************************************************
 	// Calculate direction of light and camera
@@ -322,7 +320,7 @@ float4 PixelLighting(VS_LIGHTING_OUTPUT vOut) : SV_Target
 		diffuseLight += Lights[i].diffuseColour * saturate(dot(vOut.WorldNormal.xyz, LightDirs[i])) / LightDist[i];	//Add each light's diffuse value one at a time
 		//Calculate specular light
 		halfwayNormal = normalize(LightDirs[i] + CameraDir);	//Calculate halfway normal for this ligh
-		specularLight += Lights[i].specularColour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), Lights[i].specularPower) / LightDist[i];	//Add Specular light for this light onto the current total 
+		specularLight += Lights[i].specularColour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), SpecularPower) / LightDist[i];	//Add Specular light for this light onto the current total 
 
 	}
 	
@@ -459,15 +457,12 @@ float4 ComicShade(VS_LIGHTING_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit
 	Lights[0].diffuseColour = Light1DiffuseCol;
 	Lights[0].specularColour = Light1SpecularCol;
 	Lights[0].position = Light1Position;
-	Lights[0].specularPower = Light1SpecularPower;
 	Lights[1].diffuseColour = Light2DiffuseCol;
 	Lights[1].specularColour = Light2SpecularCol;
 	Lights[1].position = Light2Position;
-	Lights[1].specularPower = Light2SpecularPower;
 	Lights[2].diffuseColour = Light3DiffuseCol;
 	Lights[2].specularColour = Light3SpecularCol;
 	Lights[2].position = Light3Position;
-	Lights[2].specularPower = Light3SpecularPower;
 
 	//*********************************************************************************************
 	// Calculate direction of light and camera
@@ -497,18 +492,21 @@ float4 ComicShade(VS_LIGHTING_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit
 		//Calculate specular light
 		halfwayNormal = normalize(LightDirs[i] + CameraDir);	//Calculate halfway normal for this light
 				
-		//specularLight += Lights[i].specularColour * CelGradient.Sample(PointSampleClamp, pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), Lights[i].specularPower)).r / LightDist[i];	//Add Specular light for this light onto the current total 
+		//specularLight += Lights[i].specularColour * CelGradient.Sample(PointSampleClamp, pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), SpecularPower)).r / LightDist[i];	//Add Specular light for this light onto the current total 
 
 		specularLight += 30.0f * DiffuseLights[i] * 
-			CelGradient.Sample(PointSampleClamp, Lights[i].specularColour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), Lights[i].specularPower)).r / LightDist[i];	//Add Specular light for this light onto the current total 
+			CelGradient.Sample(PointSampleClamp, Lights[i].specularColour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), SpecularPower)).r / LightDist[i];	//Add Specular light for this light onto the current total 
 
 	}
 	
+
 	for (int i = 0; i < NO_OF_LIGHTS; i++)
 	{
 		combinedDiffuse += DiffuseLights[i];
 	}
 
+	//combinedDiffuse = 0.0f;	//Set Diffuse to 0 (DEBUGGING ONLY)
+	//specularLight = 0.0f; //Set Specular to 0 (DEBUGGING ONLY)
 
 	////////////////////
 	// Sample texture

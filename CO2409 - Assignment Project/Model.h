@@ -142,7 +142,7 @@ public:
 	{
 		m_Scale = D3DXVECTOR3( scale, scale, scale );
 	}
-	void SetTexture(CMaterial* material)
+	void SetMaterial(CMaterial* material)
 	{
 		m_ModelMaterial = material;
 	}

@@ -19,22 +19,19 @@ private:
 	CModel m_Model;
 	D3DXVECTOR3 m_DiffuseColour;
 	D3DXVECTOR3 m_SpecularColour;
-	float m_SpecularPower;
 	bool m_IsStationary;
 
 	ID3D10EffectVectorVariable* m_DiffuseColourVar;
 	ID3D10EffectVectorVariable* m_SpecularColourVar;
 	ID3D10EffectVectorVariable* m_PositionVar;
-	ID3D10EffectScalarVariable* m_SpecularPowerVar;
 
 public:
 	void SetDiffuseColourVar(ID3D10EffectVectorVariable* colourVar);
 	void SetSpecularColourVar(ID3D10EffectVectorVariable* colourVar);
 	void SetPositionVar(ID3D10EffectVectorVariable* positionVar);
-	void SetSpecularPowerVar(ID3D10EffectScalarVariable* specularPowerVar);
 
 	CPositionalLight(D3DXVECTOR3 diffuseColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f), D3DXVECTOR3 specularColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f), 
-		D3DXVECTOR3 position = D3DXVECTOR3(0.0f, 0.0f, 0.0f), float scale = 0.0f, bool isStationary = false, float specularPower = 0.0f);
+		D3DXVECTOR3 position = D3DXVECTOR3(0.0f, 0.0f, 0.0f), float scale = 0.0f, bool isStationary = false);
 	~CPositionalLight();
 
 	// Getters
@@ -53,10 +50,6 @@ public:
 	bool IsStationary()
 	{
 		return m_IsStationary;
-	}
-	float GetSpecularPower()
-	{
-		return m_SpecularPower;
 	}
 	D3DXVECTOR3 GetScale()
 	{
@@ -84,10 +77,6 @@ public:
 	{
 		m_IsStationary = isStationary;
 	}
-	void SetSpecularPower(float specularPower)
-	{
-		m_SpecularPower = specularPower;
-	}
 	void SetScale(float scale)
 	{
 		m_Model.SetScale(scale);
@@ -100,10 +89,9 @@ public:
 	// Other
 	bool LoadModel(const string& fileName, CTechnique* shaderCode);
 
-	void SetTexture(CMaterial* texture);
+	void SetMaterial(CMaterial* texture);
 
 	void UpdateMatrix();								//Call model update matrix
-
 
 	void LightRender(D3DXVECTOR3 diffuseColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f), D3DXVECTOR3 specularColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		
 	void ModelRender(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		//Call model render

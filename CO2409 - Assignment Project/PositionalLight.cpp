@@ -11,18 +11,12 @@ void CPositionalLight::SetPositionVar(ID3D10EffectVectorVariable* positionVar)
 {
 	m_PositionVar = positionVar;
 }
-void CPositionalLight::SetSpecularPowerVar(ID3D10EffectScalarVariable* specularPowerVar)
-{
-	m_SpecularPowerVar = specularPowerVar;
-}
 
-
-CPositionalLight::CPositionalLight(D3DXVECTOR3 diffuseColour, D3DXVECTOR3 specularColour, D3DXVECTOR3 position, float scale, bool isStationary, float specularPower) :
+CPositionalLight::CPositionalLight(D3DXVECTOR3 diffuseColour, D3DXVECTOR3 specularColour, D3DXVECTOR3 position, float scale, bool isStationary) :
 		m_DiffuseColour(diffuseColour),
 		m_SpecularColour(specularColour),
 		m_Model(CModel(position, D3DXVECTOR3(0.0f, 0.0f, 0.0f), scale, m_DiffuseColour)),
-		m_IsStationary(isStationary),
-		m_SpecularPower(specularPower)
+		m_IsStationary(isStationary)
 {
 }
 
@@ -35,9 +29,9 @@ bool CPositionalLight::LoadModel(const string& fileName, CTechnique* shaderCode)
 	return m_Model.Load(fileName, shaderCode);
 }
 
-void CPositionalLight::SetTexture(CMaterial* material)
+void CPositionalLight::SetMaterial(CMaterial* material)
 {
-	m_Model.SetTexture(material);
+	m_Model.SetMaterial(material);
 }
 
 void CPositionalLight::UpdateMatrix()	//Call model update matrix
@@ -50,9 +44,7 @@ void CPositionalLight::LightRender(D3DXVECTOR3 diffuseColour, D3DXVECTOR3 specul
 	m_DiffuseColourVar->SetRawValue(diffuseColour, 0, sizeof(D3DXVECTOR3));
 	m_SpecularColourVar->SetRawValue(specularColour, 0, sizeof(D3DXVECTOR3));
 	m_PositionVar->SetRawValue(m_Model.GetPosition(), 0, sizeof(D3DXVECTOR3));
-	m_SpecularPowerVar->SetFloat(m_SpecularPower);
 }
-
 
 void CPositionalLight::ModelRender(D3DXVECTOR3 colour)			//Call model render
 {

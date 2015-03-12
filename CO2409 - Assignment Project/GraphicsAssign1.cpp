@@ -1,7 +1,5 @@
 // **%** is the symbol of code that needs to be redone/undone before submission that might be easily missed - check entire solution - including .fx file
 
-//Need a texture class
-
 
 //--------------------------------------------------------------------------------------
 //	GraphicsAssign1.cpp
@@ -251,6 +249,7 @@ bool LoadEffectFile()
 	ParallaxOutlinedTechnique = new CTechnique(Effect->GetTechniqueByName("ParallaxOutlined"), true, true, false);
 	PixelLitOutlinedTechnique = new CTechnique(Effect->GetTechniqueByName("PixelLitOutlined"), true, false, false);
 
+
 	// Push techniques onto the model technique list
 	CModel::m_TechniqueList.push_back(PlainColourTechnique);
 	CModel::m_TechniqueList.push_back(DiffuseTexturedTechnique);
@@ -271,16 +270,17 @@ bool LoadEffectFile()
 	
 	// Matrix data
 	CModel::SetMatrixShaderVariable(Effect->GetVariableByName( "WorldMatrix" )->AsMatrix());
-	ViewProjMatrixVar = Effect->GetVariableByName("ViewProjMatrix")->AsMatrix();
-	ViewMatrixVar = Effect->GetVariableByName("ViewMatrix")->AsMatrix();
-	ProjMatrixVar = Effect->GetVariableByName("ProjMatrix")->AsMatrix();
+	ViewProjMatrixVar =				Effect->GetVariableByName("ViewProjMatrix")->AsMatrix();
+	ViewMatrixVar =					Effect->GetVariableByName("ViewMatrix")->AsMatrix();
+	ProjMatrixVar =					Effect->GetVariableByName("ProjMatrix")->AsMatrix();
 
-	// Texture data
-	CMaterial::SetDiffuseSpecularShaderVariable( Effect->GetVariableByName("DiffuseMap")->AsShaderResource());
-	CMaterial::SetNormalMapShaderVariable(Effect->GetVariableByName("NormalMap")->AsShaderResource());
-	CMaterial::SetParallaxDepthShaderVariable(Effect->GetVariableByName("ParallaxDepth")->AsScalar());
-	CMaterial::SetCelGradientShaderVariable(Effect->GetVariableByName("CelGradient")->AsShaderResource());
-	CMaterial::SetOutlineThicknessShaderVariable(Effect->GetVariableByName("OutlineThickness")->AsScalar());
+	// Material data
+	CMaterial::SetDiffuseSpecularShaderVariable(	Effect->GetVariableByName("DiffuseMap")->AsShaderResource());
+	CMaterial::SetSpecularPowerShaderVariable(		Effect->GetVariableByName("SpecularPower")->AsScalar());
+	CMaterial::SetNormalMapShaderVariable(			Effect->GetVariableByName("NormalMap")->AsShaderResource());
+	CMaterial::SetParallaxDepthShaderVariable(		Effect->GetVariableByName("ParallaxDepth")->AsScalar());
+	CMaterial::SetCelGradientShaderVariable(		Effect->GetVariableByName("CelGradient")->AsShaderResource());
+	CMaterial::SetOutlineThicknessShaderVariable(	Effect->GetVariableByName("OutlineThickness")->AsScalar());
 
 	// Camera data
 	CameraPositionVar = Effect->GetVariableByName("CameraPos")->AsVector();
@@ -303,7 +303,7 @@ bool LoadEffectFile()
 // Scene Setup / Update / Rendering
 //--------------------------------------------------------------------------------------
 
-// Create / load the camera, models and textures for the scene
+// Create / load the camera, models and Materials for the scene
 bool InitScene()
 {
 	// Create camera
@@ -311,95 +311,104 @@ bool InitScene()
 	Camera->SetPosition(D3DXVECTOR3(-15.0f, 20.0f, -40.0f));
 	Camera->SetRotation( D3DXVECTOR3(ToRadians(13.0f), ToRadians(18.0f), 0.0f) ); // ToRadians is a new helper function to convert degrees to radians
 
-	// Texture initialisation
+	// Material initialisation
 
-	// Create Texture objects
-	CMaterial* StoneTexture			= new CMaterial();
-	CMaterial* WoodTexture			= new CMaterial();
-	CMaterial* GrassTexture			= new CMaterial();
-	CMaterial* BrainTexture			= new CMaterial();
-	CMaterial* PatternTexture		= new CMaterial();
-	CMaterial* CobbleTexture		= new CMaterial();
-	CMaterial* TechTexture			= new CMaterial();
-	CMaterial* WallTexture			= new CMaterial();
-	CMaterial* Troll1Texture		= new CMaterial();
-	CMaterial* LightTexture			= new CMaterial();
-	CMaterial* ThunderboltTexture	= new CMaterial();
-	CMaterial* FlamesTexture		= new CMaterial();
+	// Create Material objects
+	CMaterial* StoneMaterial		= new CMaterial();
+	CMaterial* WoodMaterial			= new CMaterial();
+	CMaterial* GrassMaterial		= new CMaterial();
+	CMaterial* BrainMaterial		= new CMaterial();
+	CMaterial* PatternMaterial		= new CMaterial();
+	CMaterial* CobbleMaterial		= new CMaterial();
+	CMaterial* TechMaterial			= new CMaterial();
+	CMaterial* WallMaterial			= new CMaterial();
+	CMaterial* Troll1Material		= new CMaterial();
+	CMaterial* LightMaterial		= new CMaterial();
+	CMaterial* ThunderboltMaterial	= new CMaterial();
+	CMaterial* FlamesMaterial		= new CMaterial();
 		
 
-	// Push Texture objects onto texture list
-	CModel::m_MaterialList.push_back(StoneTexture);
-	CModel::m_MaterialList.push_back(WoodTexture);
-	CModel::m_MaterialList.push_back(GrassTexture);
-	CModel::m_MaterialList.push_back(BrainTexture);
-	CModel::m_MaterialList.push_back(PatternTexture);
-	CModel::m_MaterialList.push_back(CobbleTexture);
-	CModel::m_MaterialList.push_back(TechTexture);
-	CModel::m_MaterialList.push_back(WallTexture);
-	CModel::m_MaterialList.push_back(Troll1Texture);
-	CModel::m_MaterialList.push_back(LightTexture);
-	CModel::m_MaterialList.push_back(ThunderboltTexture);
-	CModel::m_MaterialList.push_back(FlamesTexture);
+	// Push Material objects onto Material list
+	CModel::m_MaterialList.push_back(StoneMaterial);
+	CModel::m_MaterialList.push_back(WoodMaterial);
+	CModel::m_MaterialList.push_back(GrassMaterial);
+	CModel::m_MaterialList.push_back(BrainMaterial);
+	CModel::m_MaterialList.push_back(PatternMaterial);
+	CModel::m_MaterialList.push_back(CobbleMaterial);
+	CModel::m_MaterialList.push_back(TechMaterial);
+	CModel::m_MaterialList.push_back(WallMaterial);
+	CModel::m_MaterialList.push_back(Troll1Material);
+	CModel::m_MaterialList.push_back(LightMaterial);
+	CModel::m_MaterialList.push_back(ThunderboltMaterial);
+	CModel::m_MaterialList.push_back(FlamesMaterial);
 
-	
-	// Load Texture maps from file and set other texture variables
-	if (!StoneTexture->LoadDiffSpecMap(TEXT("StoneDiffuseSpecular.dds")))		return false;
-	if (!StoneTexture->LoadCelGradient(TEXT("CelGradient.png")))				return false;
-	StoneTexture->SetOutlineThickness(0.035f);
+	// Load Texture maps from file and set other material variables
+	if (!StoneMaterial->LoadDiffSpecMap(TEXT("StoneDiffuseSpecular.dds")))		return false;
+	StoneMaterial->SetSpecularPower(64.0f);
+	if (!StoneMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
+	StoneMaterial->SetOutlineThickness(0.035f);
 
-	if (!WoodTexture->LoadDiffSpecMap(TEXT("WoodDiffuseSpecular.dds")))			return false;
-	if (!WoodTexture->LoadNormalMap(TEXT("WoodNormal.dds")))					return false;
-	WoodTexture->SetParallaxDepth(0.08f);
-	if (!WoodTexture->LoadCelGradient(TEXT("CelGradient.png")))					return false;
-	WoodTexture->SetOutlineThickness(0.035f);
+	if (!WoodMaterial->LoadDiffSpecMap(TEXT("WoodDiffuseSpecular.dds")))			return false;
+	WoodMaterial->SetSpecularPower(64.0f);
+	if (!WoodMaterial->LoadNormalMap(TEXT("WoodNormal.dds")))					return false;
+	WoodMaterial->SetParallaxDepth(0.08f);
+	if (!WoodMaterial->LoadCelGradient(TEXT("CelGradient.png")))					return false;
+	WoodMaterial->SetOutlineThickness(0.035f);
 
-	if (!GrassTexture->LoadDiffSpecMap(TEXT("GrassDiffuseSpecular.dds")))		return false;
-	if (!GrassTexture->LoadCelGradient(TEXT("CelGradient.png")))				return false;
-	GrassTexture->SetOutlineThickness(0.035f);
+	if (!GrassMaterial->LoadDiffSpecMap(TEXT("GrassDiffuseSpecular.dds")))		return false;
+	GrassMaterial->SetSpecularPower(64.0f);
+	if (!GrassMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
+	GrassMaterial->SetOutlineThickness(0.035f);
 
-	if (!BrainTexture->LoadDiffSpecMap(TEXT("BrainDiffuseSpecular.dds")))		return false;
-	if (!BrainTexture->LoadNormalMap(TEXT("BrainNormalDepth.dds")))				return false;
-	BrainTexture->SetParallaxDepth(0.08f);
-	if (!BrainTexture->LoadCelGradient(TEXT("CelGradient.png")))				return false;
-	BrainTexture->SetOutlineThickness(0.035f);
+	if (!BrainMaterial->LoadDiffSpecMap(TEXT("BrainDiffuseSpecular.dds")))		return false;
+	BrainMaterial->SetSpecularPower(16.0f);
+	if (!BrainMaterial->LoadNormalMap(TEXT("BrainNormalDepth.dds")))				return false;
+	BrainMaterial->SetParallaxDepth(0.08f);
+	if (!BrainMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
+	BrainMaterial->SetOutlineThickness(0.035f);
 
-	if (!PatternTexture->LoadDiffSpecMap(TEXT("PatternDiffuseSpecular.dds")))	return false;
-	if (!PatternTexture->LoadNormalMap(TEXT("PatternNormalDepth.dds")))			return false;
-	PatternTexture->SetParallaxDepth(0.08f);
-	if (!PatternTexture->LoadCelGradient(TEXT("CelGradient.png")))				return false;
-	PatternTexture->SetOutlineThickness(0.035f);
+	if (!PatternMaterial->LoadDiffSpecMap(TEXT("PatternDiffuseSpecular.dds")))	return false;
+	PatternMaterial->SetSpecularPower(8.0f);
+	if (!PatternMaterial->LoadNormalMap(TEXT("PatternNormalDepth.dds")))			return false;
+	PatternMaterial->SetParallaxDepth(0.08f);
+	if (!PatternMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
+	PatternMaterial->SetOutlineThickness(0.035f);
 
-	if (!CobbleTexture->LoadDiffSpecMap(TEXT("CobbleDiffuseSpecular.dds")))		return false;
-	if (!CobbleTexture->LoadNormalMap(TEXT("CobbleNormalDepth.dds")))			return false;
-	CobbleTexture->SetParallaxDepth(0.08f);
-	if (!CobbleTexture->LoadCelGradient(TEXT("CelGradient.png")))				return false;
-	CobbleTexture->SetOutlineThickness(0.035f);
+	if (!CobbleMaterial->LoadDiffSpecMap(TEXT("CobbleDiffuseSpecular.dds")))		return false;
+	CobbleMaterial->SetSpecularPower(64.0f);
+	if (!CobbleMaterial->LoadNormalMap(TEXT("CobbleNormalDepth.dds")))			return false;
+	CobbleMaterial->SetParallaxDepth(0.08f);
+	if (!CobbleMaterial->LoadCelGradient(TEXT("CelGradient.png")))				return false;
+	CobbleMaterial->SetOutlineThickness(0.035f);
 
-	if (!TechTexture->LoadDiffSpecMap(TEXT("TechDiffuseSpecular.dds")))			return false;
-	if (!TechTexture->LoadNormalMap(TEXT("TechNormalDepth.dds")))				return false;
-	TechTexture->SetParallaxDepth(0.08f);
-	if (!TechTexture->LoadCelGradient(TEXT("CelGradient.png")))					return false;
-	TechTexture->SetOutlineThickness(0.035f);
+	if (!TechMaterial->LoadDiffSpecMap(TEXT("TechDiffuseSpecular.dds")))			return false;
+	TechMaterial->SetSpecularPower(64.0f);
+	if (!TechMaterial->LoadNormalMap(TEXT("TechNormalDepth.dds")))				return false;
+	TechMaterial->SetParallaxDepth(0.08f);
+	if (!TechMaterial->LoadCelGradient(TEXT("CelGradient.png")))					return false;
+	TechMaterial->SetOutlineThickness(0.035f);
 
-	if (!WallTexture->LoadDiffSpecMap(TEXT("WallDiffuseSpecular.dds")))			return false;
-	if (!WallTexture->LoadNormalMap(TEXT("WallNormalDepth.dds")))				return false;
-	WallTexture->SetParallaxDepth(0.08f);
-	if (!WallTexture->LoadCelGradient(TEXT("CelGradient.png")))					return false;
-	WallTexture->SetOutlineThickness(0.035f);
+	if (!WallMaterial->LoadDiffSpecMap(TEXT("WallDiffuseSpecular.dds")))			return false;
+	WallMaterial->SetSpecularPower(128.0f);
+	if (!WallMaterial->LoadNormalMap(TEXT("WallNormalDepth.dds")))				return false;
+	WallMaterial->SetParallaxDepth(0.08f);
+	if (!WallMaterial->LoadCelGradient(TEXT("CelGradient.png")))					return false;
+	WallMaterial->SetOutlineThickness(0.035f);
 
-	if (!Troll1Texture->LoadDiffSpecMap(TEXT("Troll1DiffuseSpecular.dds")))		return false;
-	if (!Troll1Texture->LoadCelGradient(TEXT("CelGradient.png")))				return false;
-	Troll1Texture->SetOutlineThickness(0.035f);
+	if (!Troll1Material->LoadDiffSpecMap(TEXT("Troll1DiffuseSpecular.dds")))		return false;
+	Troll1Material->SetSpecularPower(16.0f);
+	if (!Troll1Material->LoadCelGradient(TEXT("CelGradient.png")))				return false;
+	Troll1Material->SetOutlineThickness(0.035f);
 		
-	if (!ThunderboltTexture->LoadDiffSpecMap(TEXT("thdbolt.jpg")))				return false;
-		
-	if (!ThunderboltTexture->LoadCelGradient(TEXT("CelGradient.png")))			return false;
+	if (!ThunderboltMaterial->LoadDiffSpecMap(TEXT("thdbolt.jpg")))				return false;
+	ThunderboltMaterial->SetSpecularPower(2.0f);
+	if (!ThunderboltMaterial->LoadCelGradient(TEXT("CelGradient.png")))			return false;
 
-	if (!LightTexture->LoadDiffSpecMap(TEXT("Flare.jpg")))						return false;
+	if (!LightMaterial->LoadDiffSpecMap(TEXT("Flare.jpg")))						return false;
+	LightMaterial->SetSpecularPower(64.0f);
 
-	if (!FlamesTexture->LoadDiffSpecMap(TEXT("flames4.png")))					return false;
-		
+	if (!FlamesMaterial->LoadDiffSpecMap(TEXT("flames4.png")))					return false;
+	FlamesMaterial->SetSpecularPower(64.0f);
 
 	// Model initialisation
 
@@ -409,15 +418,15 @@ bool InitScene()
 		g_Models.push_back(new CModel);
 	}
 
-	// Set Model Textures
+	// Set Model Materials 
 
-	g_Models[0]->SetTexture(WallTexture);
-	g_Models[1]->SetTexture(PatternTexture);
-	g_Models[2]->SetTexture(WoodTexture);
-	g_Models[3]->SetTexture(StoneTexture);
-	g_Models[4]->SetTexture(Troll1Texture);
-	g_Models[5]->SetTexture(BrainTexture);
-	g_Models[6]->SetTexture(ThunderboltTexture);
+	g_Models[0]->SetMaterial(WallMaterial);
+	g_Models[1]->SetMaterial(PatternMaterial);
+	g_Models[2]->SetMaterial(WoodMaterial);
+	g_Models[3]->SetMaterial(StoneMaterial);
+	g_Models[4]->SetMaterial(Troll1Material);
+	g_Models[5]->SetMaterial(BrainMaterial);
+	g_Models[6]->SetMaterial(ThunderboltMaterial);
 		
 	
 	// Set Model Colours
@@ -492,25 +501,19 @@ bool InitScene()
 	Lights[0]->SetPositionVar(Effect->GetVariableByName("Light1Position")->AsVector());
 	Lights[1]->SetPositionVar(Effect->GetVariableByName("Light2Position")->AsVector());
 	Lights[2]->SetPositionVar(Effect->GetVariableByName("Light3Position")->AsVector());
-	//Light Specular Powers
-	Lights[0]->SetSpecularPowerVar(Effect->GetVariableByName("Light1SpecularPower")->AsScalar());
-	Lights[1]->SetSpecularPowerVar(Effect->GetVariableByName("Light2SpecularPower")->AsScalar());
-	Lights[2]->SetSpecularPowerVar(Effect->GetVariableByName("Light3SpecularPower")->AsScalar());
-
+	
 	// Light Positioning, colour data etc
 	Lights[0]->SetPosition( D3DXVECTOR3(30.0f, 10.0f, 0.0f) );
 	Lights[0]->SetScale( 4.0f ); // Nice if size of light reflects its brightness
 	Lights[0]->SetIsStationary(false);
 	Lights[0]->SetDiffuseColour(  D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 10.0f);
 	Lights[0]->SetSpecularColour( D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 1.5f);
-	Lights[0]->SetSpecularPower(64.0f);
 
 	Lights[1]->SetPosition( D3DXVECTOR3(-20.0f, 30.0f, 50.0f) );			
 	Lights[1]->SetScale( 4.0f );
 	Lights[1]->SetIsStationary(true);
 	Lights[1]->SetSpecularColour( D3DXVECTOR3(1.0f, 0.0f, 0.7f) * 15.0f);
 	Lights[1]->SetDiffuseColour(  D3DXVECTOR3(1.0f, 0.0f, 0.7f) * 15.f);
-	Lights[1]->SetSpecularPower(64.0f);
 
 	Lights[2]->SetPosition(D3DXVECTOR3(-95.0f, 22.5f, 26.0f));
 	Lights[2]->SetScale(4.0f);
@@ -518,7 +521,6 @@ bool InitScene()
 	Lights[2]->SetIsStationary(true);
 	Lights[2]->SetDiffuseColour(D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 20.0f);
 	Lights[2]->SetSpecularColour(D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 15.0f);
-	Lights[2]->SetSpecularPower(128.0f);
 
 	// Update the matrices of lights that will be stationary (dont need to update them in update scene) 
 	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
@@ -532,18 +534,18 @@ bool InitScene()
 	// Create Light models
 	for (unsigned int i = 0; i < 2; i++)
 	{
-		Lights[i]->SetTexture(LightTexture);
+		Lights[i]->SetMaterial(LightMaterial);
 		if (!Lights[i]->LoadModel( "Light.x", AdditiveTexTintTechnique ))	return false;
 	}
 
-	Lights[2]->SetTexture(FlamesTexture);
+	Lights[2]->SetMaterial(FlamesMaterial);
 	if (!Lights[2]->LoadModel("FlameShell.x", AlphaCutoutTechnique)) return false;
 
 
 	return true;
 }
 
-void SwitchTexturesAndRenderModes()
+void SwitchMaterialsAndRenderModes()
 {
 	if (KeyHit(Key_1))	//Set all to plain model colour
 	{
@@ -552,7 +554,7 @@ void SwitchTexturesAndRenderModes()
 			g_Models[i]->SetRenderTechnique(PlainColourTechnique);
 		}
 	}
-	if (KeyHit(Key_2))	//Set all to basic textured (No lighting)
+	if (KeyHit(Key_2))	//Set all to basic Material (No lighting)
 	{
 		for (unsigned int i = 0; i < g_Models.size(); i++)
 		{
@@ -621,7 +623,7 @@ void SwitchTexturesAndRenderModes()
 // Update the scene - move/rotate each model and the camera, then update their matrices
 void UpdateScene(float frameTime)
 {
-	SwitchTexturesAndRenderModes();	//Call function to handle real time switching of textures and rendering techniques for each model
+	SwitchMaterialsAndRenderModes();	//Call function to handle real time switching of Materials and rendering techniques for each model
 
 	// Control camera position and update its matrices (view matrix, projection matrix) each frame
 	// Don't be deceived into thinking that this is a new method to control models - the same code we used previously is in the camera class
@@ -717,7 +719,7 @@ void RenderScene()
 	//Misc
 	WiggleVar->SetFloat(Wiggle);
 	
-	// Render each model - individial model data for shader (textures etc) is encapsulated in the class
+	// Render each model - individial model data for shader (Materials etc) is encapsulated in the class
 	
 	// Render models in vector
 	for (unsigned int i = 0; i < g_Models.size(); i++)
@@ -765,7 +767,7 @@ void ReleaseResources()
 		g_Models.pop_back();
 	}
 	
-	// Deallocate texture data
+	// Deallocate Material data
 	while (!CModel::m_MaterialList.empty())
 	{
 		if (CModel::m_MaterialList.back()) { delete CModel::m_MaterialList.back(); }

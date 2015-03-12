@@ -18,13 +18,13 @@ public:
 
 	bool LoadDiffSpecMap(wchar_t* mapName);
 
-	bool LoadNormalMap(wchar_t* mapName);
-
-	bool LoadCelGradient(wchar_t* mapName);
-
 	void SetSpecularPower(float specularPower);
 
+	bool LoadNormalMap(wchar_t* mapName);
+
 	void SetParallaxDepth(float parallaxDepth);
+
+	bool LoadCelGradient(wchar_t* mapName);
 
 	void SetOutlineThickness(float outlineThickness);
 
@@ -51,9 +51,6 @@ public:
 	static void SetCelGradientShaderVariable(ID3D10EffectShaderResourceVariable* CelGradientVar);
 
 	static void SetOutlineThicknessShaderVariable(ID3D10EffectScalarVariable* outlineThicknessVar);
-
-	static void SetSpecularPower(ID3D10EffectScalarVariable* specularPowerVar);
-
 
 private:
 	ID3D10ShaderResourceView* m_DiffSpecMap;
