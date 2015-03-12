@@ -515,13 +515,13 @@ bool InitScene()
 	Lights[1]->SetSpecularColour( D3DXVECTOR3(1.0f, 0.0f, 0.7f) * 15.0f);
 	Lights[1]->SetDiffuseColour(  D3DXVECTOR3(1.0f, 0.0f, 0.7f) * 15.f);
 
-	Lights[2]->SetPosition(D3DXVECTOR3(-95.0f, 22.5f, 26.0f));
+	//Lights[2]->SetPosition(D3DXVECTOR3(-95.0f, 22.5f, 26.0f));
+	Lights[2]->SetPosition(D3DXVECTOR3(-90.0f, 21.0f, 23.1f));
 	Lights[2]->SetScale(4.0f);
 	Lights[2]->SetRotation(D3DXVECTOR3(ToRadians(-15.0f), ToRadians(300.0f), 0.0f));
 	Lights[2]->SetIsStationary(true);
 	Lights[2]->SetDiffuseColour(D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 20.0f);
 	Lights[2]->SetSpecularColour(D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 15.0f);
-
 	// Update the matrices of lights that will be stationary (dont need to update them in update scene) 
 	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
 	{
