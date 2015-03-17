@@ -127,6 +127,12 @@
     <PostBuildEvent>
       <Command>copy "$(ProjectDir)$(ProjectName).fx" "$(TargetDir)"</Command>
     </PostBuildEvent>
+    <FxCompile>
+      <DisableOptimizations>true</DisableOptimizations>
+    </FxCompile>
+    <FxCompile>
+      <EnableDebuggingInformation>true</EnableDebuggingInformation>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Midl>
@@ -240,6 +246,7 @@
     <ClInclude Include="PositionalLight.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="SpotLight.h" />
     <ClInclude Include="Technique.h" />
     <ClInclude Include="Material.h" />
   </ItemGroup>
@@ -267,11 +274,15 @@
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="GraphicsAssign1.cpp" />
     <ClCompile Include="Input.cpp" />
+    <ClCompile Include="SpotLight.cpp" />
     <ClCompile Include="Technique.cpp" />
     <ClCompile Include="Material.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="GraphicsAssign1.fx" />
+    <FxCompile Include="GraphicsAssign1.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="GraphicsAssign1.manifest" />

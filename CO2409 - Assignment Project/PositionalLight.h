@@ -16,7 +16,6 @@
 class CPositionalLight
 {
 private:
-	CModel m_Model;
 	D3DXVECTOR3 m_DiffuseColour;
 	D3DXVECTOR3 m_SpecularColour;
 	bool m_IsStationary;
@@ -24,6 +23,9 @@ private:
 	ID3D10EffectVectorVariable* m_DiffuseColourVar;
 	ID3D10EffectVectorVariable* m_SpecularColourVar;
 	ID3D10EffectVectorVariable* m_PositionVar;
+
+protected:
+	CModel m_Model;
 
 public:
 	void SetDiffuseColourVar(ID3D10EffectVectorVariable* colourVar);
@@ -93,9 +95,13 @@ public:
 
 	void UpdateMatrix();								//Call model update matrix
 
-	void LightRender(D3DXVECTOR3 diffuseColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f), D3DXVECTOR3 specularColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		
+	void LightRender();	//Uses the member value of diffuse and specular light
+	void LightRender(D3DXVECTOR3 diffuseColour, D3DXVECTOR3 specularColour);		
 	
 	void ModelRender(D3DXVECTOR3 colour = D3DXVECTOR3(0.0f, 0.0f, 0.0f));		//Call model render
+
+	void Control(float frameTime, EKeyCode turnUp, EKeyCode turnDown, EKeyCode turnLeft, EKeyCode turnRight,
+		EKeyCode turnCW, EKeyCode turnCCW, EKeyCode moveForward, EKeyCode moveBackward);
 };
 
 #endif

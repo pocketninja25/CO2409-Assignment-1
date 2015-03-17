@@ -40,6 +40,11 @@ void CPositionalLight::UpdateMatrix()	//Call model update matrix
 	m_Model.UpdateMatrix();
 }
 
+void CPositionalLight::LightRender()
+{
+	LightRender(m_DiffuseColour, m_SpecularColour);
+}
+
 void CPositionalLight::LightRender(D3DXVECTOR3 diffuseColour, D3DXVECTOR3 specularColour)
 {
 	m_DiffuseColourVar->SetRawValue(diffuseColour, 0, sizeof(D3DXVECTOR3));
@@ -51,4 +56,10 @@ void CPositionalLight::ModelRender(D3DXVECTOR3 colour)			//Call model render
 {
 	m_Model.SetColour(colour);
 	m_Model.Render();
+}
+
+void CPositionalLight::Control(float frameTime, EKeyCode turnUp, EKeyCode turnDown, EKeyCode turnLeft, EKeyCode turnRight,
+	EKeyCode turnCW, EKeyCode turnCCW, EKeyCode moveForward, EKeyCode moveBackward)
+{
+	m_Model.Control(frameTime, turnUp, turnDown, turnLeft, turnRight, turnCW, turnCCW, moveForward, moveBackward);
 }

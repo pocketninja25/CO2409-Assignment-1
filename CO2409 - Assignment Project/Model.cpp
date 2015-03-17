@@ -16,6 +16,8 @@ ID3D10EffectMatrixVariable* CModel::m_MatrixVar = NULL;
 
 ID3D10EffectVectorVariable* CModel::m_ColourVar = NULL;
 
+CTechnique* CModel::m_ShadowRenderTechnique = NULL;
+
 vector<CMaterial*>			CModel::m_MaterialList = vector<CMaterial*>();
 vector<CTechnique*>			CModel::m_TechniqueList= vector<CTechnique*>();
 
@@ -29,6 +31,11 @@ void CModel::SetMatrixShaderVariable(ID3D10EffectMatrixVariable* matrixVar)
 void CModel::SetColourShaderVariable(ID3D10EffectVectorVariable* colourVar)
 {
 	m_ColourVar = colourVar;
+}
+
+void CModel::SetShadowRenderTechnique(CTechnique* shadowTechnique)
+{
+	m_ShadowRenderTechnique = shadowTechnique;
 }
 
 ///////////////////////////////
@@ -259,6 +266,17 @@ void CModel::UpdateMatrix()
 	m_WorldMatrix = matrixScaling * matrixZRot * matrixXRot * matrixYRot * matrixTranslation;
 }
 
+// Make the model face a given point
+void CModel::FacePoint(D3DXVECTOR3 point)
+{
+	using gen::CVector3;
+	using gen::CMatrix4x4;
+
+	// Method: Make a (world) matrix that faces a particular direction - just force the z-axis 
+	// that way and put the other axes at right angles. Then extract the position and rotations from that matrix
+	CMatrix4x4 facingMatrix = MatrixFaceTarget(CVector3(m_Position), CVector3(point));
+	facingMatrix.DecomposeAffineEuler((CVector3*)&m_Position, (CVector3*)&m_Rotation, 0);
+}
 
 // Control the model's position and rotation using keys provided. Amount of motion performed depends on frame time
 void CModel::Control( float frameTime, EKeyCode turnUp, EKeyCode turnDown, EKeyCode turnLeft, EKeyCode turnRight,  
@@ -345,4 +363,36 @@ void CModel::Render()
 		g_pd3dDevice->DrawIndexed( m_NumIndices, 0, 0 );
 	}
 	g_pd3dDevice->DrawIndexed( m_NumIndices, 0, 0 );
+}
+
+void CModel::ShadowRender()
+{
+	// Don't render if no geometry - or no render technique
+	if (!m_HasGeometry || !m_ShadowRenderTechnique)
+	{
+		return;
+	}
+	//Provide values for effect variables - texture, model colour, matrix
+	if (m_MatrixVar)	//Set the matrix (if the m_MatrixVar is valid)
+	{
+		m_MatrixVar->SetMatrix((float*)GetWorldMatrix());
+	}
+
+	// Select vertex and index buffer - assuming all data will be as triangle lists
+	UINT offset = 0;
+	g_pd3dDevice->IASetVertexBuffers(0, 1, &m_VertexBuffer, &m_VertexSize, &offset);
+	g_pd3dDevice->IASetInputLayout(m_VertexLayout);
+	g_pd3dDevice->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+	g_pd3dDevice->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Render the model. All the data and shader variables are prepared, now select the technique to use and draw.
+	// The loop is for advanced techniques that need multiple passes - we will only use techniques with one pass
+	D3D10_TECHNIQUE_DESC techDesc;
+	m_ShadowRenderTechnique->GetTechnique()->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		m_ShadowRenderTechnique->GetTechnique()->GetPassByIndex(p)->Apply(0);
+		g_pd3dDevice->DrawIndexed(m_NumIndices, 0, 0);
+	}
+
 }

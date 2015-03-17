@@ -18,6 +18,15 @@ struct VS_BASIC_INPUT
 	float2 UV     : TEXCOORD0;
 };
 
+//Normal Mapping vertex shader output
+struct VS_NORMALMAP_INPUT
+{
+	float3 Pos     : POSITION;
+	float3 Normal  : NORMAL;
+	float2 UV      : TEXCOORD0;
+	float3 Tangent : TANGENT;
+};
+
 // Data output from vertex shader to pixel shader for simple techniques. Again different techniques have different requirements
 struct VS_BASIC_OUTPUT
 {
@@ -35,15 +44,6 @@ struct VS_LIGHTING_OUTPUT
 };
 
 //Normal Mapping vertex shader output
-struct VS_NORMALMAP_INPUT
-{
-	float3 Pos     : POSITION;
-	float3 Normal  : NORMAL;
-	float3 Tangent : TANGENT;
-	float2 UV      : TEXCOORD0;
-};
-
-//Normal Mapping vertex shader output
 struct VS_NORMALMAP_OUTPUT
 {
 	float4 ProjPos      : SV_POSITION;
@@ -58,6 +58,19 @@ struct LIGHT_DATA
 	float3 diffuseColour;
 	float3 specularColour;
 	float3 position;
+};
+
+struct SPOT_LIGHT_DATA
+{
+	float3 diffuseColour;
+	float3 specularColour;
+	float3 position;
+	float3 facingVector;
+	float4x4 viewMatrix;
+	float4x4 projMatrix;
+	float4x4 viewProjMatrix;
+	float cosHalfAngle;
+	Texture2D shadowMap;
 };
 
 //--------------------------------------------------------------------------------------
@@ -98,8 +111,6 @@ float3 CameraPos;
 // Lighting Data
 static const unsigned int NO_OF_LIGHTS = 3;	
 
-float3 LightDiffuseColours[NO_OF_LIGHTS];
-
 float3 Light1DiffuseCol;
 float3 Light2DiffuseCol;
 float3 Light3DiffuseCol;
@@ -109,6 +120,19 @@ float3 Light3SpecularCol;
 float3 Light1Position;
 float3 Light2Position;
 float3 Light3Position;
+
+static const unsigned int NO_OF_SPOT_LIGHTS = 1;
+
+float3		SpotLight1DiffuseCol;
+float3		SpotLight1SpecularCol;
+float3		SpotLight1Position;
+float3		SpotLight1Facing;
+float4x4	SpotLight1ViewMatrix;
+float4x4	SpotLight1ProjMatrix;
+float4x4	SpotLight1ViewProjMatrix;
+float		SpotLight1CosHalfAngle;
+Texture2D	SpotLight1ShadowMap;
+
 
 float3 AmbientColour;
 
@@ -137,6 +161,7 @@ SamplerState PointSampleClamp
 	AddressU = Clamp;
 	AddressV = Clamp;
 };
+
 
 //--------------------------------------------------------------------------------------
 // Vertex Shaders
@@ -260,16 +285,29 @@ VS_BASIC_OUTPUT ExpandOutline(VS_BASIC_INPUT vIn)
 void AssembleLightData(out LIGHT_DATA Lights[NO_OF_LIGHTS])
 {
 	//Initialise Lighting Array
-	Lights[0].diffuseColour = Light1DiffuseCol;
-	Lights[0].specularColour = Light1SpecularCol;
-	Lights[0].position = Light1Position;
-	Lights[1].diffuseColour = Light2DiffuseCol;
-	Lights[1].specularColour = Light2SpecularCol;
-	Lights[1].position = Light2Position;
-	Lights[2].diffuseColour = Light3DiffuseCol;
-	Lights[2].specularColour = Light3SpecularCol;
-	Lights[2].position = Light3Position;
+	Lights[0].diffuseColour =	Light1DiffuseCol;
+	Lights[0].specularColour =	Light1SpecularCol;
+	Lights[0].position =		Light1Position;
+	Lights[1].diffuseColour =	Light2DiffuseCol;
+	Lights[1].specularColour =	Light2SpecularCol;
+	Lights[1].position =		Light2Position;
+	Lights[2].diffuseColour =	Light3DiffuseCol;
+	Lights[2].specularColour =	Light3SpecularCol;
+	Lights[2].position =		Light3Position;
 
+}
+
+void AssembleSpotLightData(out SPOT_LIGHT_DATA SpotLights[NO_OF_SPOT_LIGHTS])
+{
+	SpotLights[0].diffuseColour =	SpotLight1DiffuseCol;
+	SpotLights[0].specularColour =	SpotLight1SpecularCol;
+	SpotLights[0].position =		SpotLight1Position;
+	SpotLights[0].facingVector =	SpotLight1Facing;
+	SpotLights[0].viewMatrix =		SpotLight1ViewMatrix;
+	SpotLights[0].projMatrix =		SpotLight1ProjMatrix;
+	SpotLights[0].viewProjMatrix =	SpotLight1ViewProjMatrix;
+	SpotLights[0].cosHalfAngle =	SpotLight1CosHalfAngle;
+	SpotLights[0].shadowMap =		SpotLight1ShadowMap;
 }
 
 //--------------------------------------------------------------------------------------
@@ -322,7 +360,7 @@ float4 PixelLighting(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	float3 specularLight = 0.0f;
 	
 
-
+	//Perform Lighting Equations for the main lights
 	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)	//Perform calculations on lights, one light at a time
 	{
 		LightDirs[i] = Lights[i].position - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate length for attenuated light first)
@@ -332,11 +370,36 @@ float4 PixelLighting(VS_LIGHTING_OUTPUT vOut) : SV_Target
 		//Calculate Diffuse Light
 		diffuseLight += Lights[i].diffuseColour * saturate(dot(vOut.WorldNormal.xyz, LightDirs[i])) / LightDist[i];	//Add each light's diffuse value one at a time
 		//Calculate specular light
-		halfwayNormal = normalize(LightDirs[i] + CameraDir);	//Calculate halfway normal for this ligh
+		halfwayNormal = normalize(LightDirs[i] + CameraDir);	//Calculate halfway normal for this light
 		specularLight += Lights[i].specularColour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), SpecularPower) / LightDist[i];	//Add Specular light for this light onto the current total 
 
 	}
 	
+	//Perform Lighting Equations for the spot lights
+
+	SPOT_LIGHT_DATA SpotLights[NO_OF_SPOT_LIGHTS];
+	AssembleSpotLightData(SpotLights);
+
+	float3 SpotLightDirs[NO_OF_SPOT_LIGHTS];
+	float3 SpotLightDist[NO_OF_SPOT_LIGHTS];
+
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		SpotLightDirs[i] = SpotLights[i].position - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate length for attenuated light first)
+		SpotLightDist[i] = length(SpotLightDirs[i]);
+		SpotLightDirs[i] = normalize(SpotLightDirs[i]); //Can now normalise		
+		SpotLights[i].facingVector = normalize(SpotLights[i].facingVector);
+
+		if (SpotLights[i].cosHalfAngle < dot(SpotLights[i].facingVector, -SpotLightDirs[i]))
+		{
+			//Calculate Diffuse Light
+			diffuseLight += SpotLights[i].diffuseColour * saturate(dot(vOut.WorldNormal.xyz, SpotLightDirs[i])) / SpotLightDist[i];	//Add each light's diffuse value one at a time
+			//Calculate specular light
+			halfwayNormal = normalize(SpotLightDirs[i] + CameraDir);	//Calculate halfway normal for this ligh
+			specularLight += SpotLights[i].specularColour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), SpecularPower) / SpotLightDist[i];	//Add Specular light for this light onto the current total 
+		}
+	}
+
 
 	//diffuseLight = 0.0f;	//Set Diffuse to 0 (DEBUGGING ONLY)
 	//specularLight = 0.0f; //Set Specular to 0 (DEBUGGING ONLY)
@@ -353,6 +416,7 @@ float4 PixelLighting(VS_LIGHTING_OUTPUT vOut) : SV_Target
 	// Combine colours (lighting, textures) for final pixel colour
 
 	float4 combinedColour;
+	
 	//combinedColour.rgb = diffuseLight + specularLight;	//Light - without material
 	combinedColour.rgb = (DiffuseMaterial * diffuseLight) + (SpecularMaterial * specularLight); //Light - with material
 	
@@ -503,7 +567,35 @@ float4 ComicShade(VS_LIGHTING_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit
 			CelGradient.Sample(PointSampleClamp, Lights[i].specularColour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), SpecularPower)).r / LightDist[i];	//Add Specular light for this light onto the current total 
 
 	}
+
+	//Perform Lighting Equations for the spot lights
+
+	SPOT_LIGHT_DATA SpotLights[NO_OF_SPOT_LIGHTS];
+	AssembleSpotLightData(SpotLights);
+
+	float3 SpotLightDirs[NO_OF_SPOT_LIGHTS];
+	float3 SpotLightDist[NO_OF_SPOT_LIGHTS];
 	
+	float3 SpotDiffuseLights[NO_OF_SPOT_LIGHTS];
+
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		SpotLightDirs[i] = SpotLights[i].position - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate length for attenuated light first)
+		SpotLightDist[i] = length(SpotLightDirs[i]);
+		SpotLightDirs[i] = normalize(SpotLightDirs[i]); //Can now normalise
+		SpotLights[i].facingVector = normalize(SpotLights[i].facingVector);
+
+		if (SpotLights[i].cosHalfAngle < dot(SpotLights[i].facingVector, -SpotLightDirs[i]))
+		{
+			//Calculate Diffuse Light
+			SpotDiffuseLights[i] = SpotLights[i].diffuseColour * 
+				CelGradient.Sample(PointSampleClamp, saturate(dot(vOut.WorldNormal.xyz, SpotLightDirs[i]))).r / SpotLightDist[i];	//Add each light's diffuse value one at a time
+			//Calculate specular light
+			halfwayNormal = normalize(SpotLightDirs[i] + CameraDir);	//Calculate halfway normal for this ligh
+			specularLight += 30.0f * DiffuseLights[i] *
+				CelGradient.Sample(PointSampleClamp, SpotLights[i].specularColour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), SpecularPower)).r / SpotLightDist[i];	//Add Specular light for this light onto the current total 
+		}
+	}
 
 	for (int i = 0; i < NO_OF_LIGHTS; i++)
 	{
@@ -614,6 +706,132 @@ float4 CelParallaxMapLighting(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 	diffSpecOut.WorldNormal = worldNormal;
 	diffSpecOut.UV = offsetTexCoord;
 	return ComicShade(diffSpecOut);	//Return the value given by the PixelLighting pixel shader
+}
+
+// Shader used when rendering the shadow map depths. In fact a pixel shader isn't needed, we are
+// only writing to the depth buffer. However, needed to display what's in a shadow map
+float4 PixelDepth(VS_BASIC_OUTPUT vOut) : SV_Target
+{
+	// Output the value that would go in the depth puffer to the pixel colour (greyscale)
+	return vOut.ProjPos.z / vOut.ProjPos.w;
+}
+
+float4 ShadowMapPix(VS_LIGHTING_OUTPUT vOut) : SV_Target
+{
+	//Calculate lighting for non-directional lights
+	LIGHT_DATA Lights[NO_OF_LIGHTS];
+	AssembleLightData(Lights);
+
+	// Can't guarantee the normals are length 1, so re-normalise
+	float3 worldNormal = normalize(vOut.WorldNormal);
+
+	//*********************************************************************************************
+	// Calculate direction of light and camera
+	float3 CameraDir = normalize(CameraPos - vOut.WorldPos.xyz); // Position of camera - position of current pixel (in world space)
+
+	float3 LightDirs[NO_OF_LIGHTS];
+	float3 LightDist[NO_OF_LIGHTS];
+
+	float3 diffuseLight = AmbientColour;	//Begin with just ambient light
+
+	float3 halfwayNormal = 0.0f;
+	float3 specularLight = 0.0f;
+
+
+	////Perform Lighting Equations for the main lights
+	//for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)	//Perform calculations on lights, one light at a time
+	//{
+	//	LightDirs[i] = Lights[i].position - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate length for attenuated light first)
+	//	LightDist[i] = length(LightDirs[i]);
+	//	LightDirs[i] = normalize(LightDirs[i]); //Can now normalise
+	//
+	//	//Calculate Diffuse Light
+	//	diffuseLight += Lights[i].diffuseColour * saturate(dot(vOut.WorldNormal.xyz, LightDirs[i])) / LightDist[i];	//Add each light's diffuse value one at a time
+	//	//Calculate specular light
+	//	halfwayNormal = normalize(LightDirs[i] + CameraDir);	//Calculate halfway normal for this light
+	//	specularLight += Lights[i].specularColour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), SpecularPower) / LightDist[i];	//Add Specular light for this light onto the current total 
+	//
+	//}
+
+	//Calculate lighting for directional lights (This is where the shadows come in)
+
+	// Slight adjustment to calculated depth of pixels so they don't shadow themselves
+	const float DepthAdjust = 0.0005f;
+
+	SPOT_LIGHT_DATA SpotLights[NO_OF_SPOT_LIGHTS];
+	AssembleSpotLightData(SpotLights);
+
+	float3 SpotLightDirection;
+	float3 SpotLightDistance;
+	float4 LightViewPos;
+	float4 LightProjPos;
+	float2 shadowUV;
+	float depthFromLight;
+	float depthFromShadow;
+
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		// Using the world position of the current pixel and the matrices of the light (as a camera), find the 2D position of the
+		// pixel *as seen from the light*. Will use this to find which part of the shadow map to look at.
+		SpotLightDirection = SpotLights[i].position - vOut.WorldPos.xyz;	//Dont normalise yet (need to calculate length for attenuated light first)
+		SpotLightDistance = length(SpotLightDirection);
+		SpotLightDirection = normalize(SpotLightDirection); //Can now normalise
+		SpotLights[i].facingVector = normalize(SpotLights[i].facingVector);
+
+		if (SpotLights[i].cosHalfAngle < dot(SpotLights[i].facingVector, -SpotLightDirection))
+		{ 
+			LightViewPos = mul(float4(vOut.WorldPos, 1.0f), SpotLights[i].viewMatrix);
+			LightProjPos = mul(LightViewPos, SpotLights[i].projMatrix);
+
+			// Convert 2D pixel position as viewed from light into texture coordinates for shadow map
+			// Detail: 2D position x & y get perspective divide, then converted from range -1->1 to UV range 0->1. Also flip V axis
+			shadowUV = 0.5f * LightProjPos.xy / LightProjPos.w + float2(0.5f, 0.5f);
+			shadowUV.y = 1 - shadowUV.y;
+			
+			// Get depth of this pixel if it were visible from the light
+			depthFromLight = (LightProjPos.z / LightProjPos.w) - DepthAdjust;	// Adjustment so polygons don't shadow themselves
+			depthFromShadow = SpotLights[i].shadowMap.Sample(PointSampleClamp, shadowUV).r;
+			// Compare pixel depth from light with depth held in shadow map of the light. If shadow map depth is less then something is nearer
+			// to the light than this pixel - so the pixel gets no effect from this light
+			if (depthFromLight < depthFromShadow)
+			{
+				//Calculate Diffuse Light
+				diffuseLight += SpotLights[i].diffuseColour * saturate(dot(vOut.WorldNormal.xyz, SpotLightDirection)) / SpotLightDistance;	//Add each light's diffuse value one at a time
+				//Calculate specular light
+				halfwayNormal = normalize(SpotLightDirection + CameraDir);	//Calculate halfway normal for this light
+				specularLight += SpotLights[i].specularColour * pow(saturate(dot(vOut.WorldNormal.xyz, halfwayNormal)), SpecularPower) / SpotLightDistance;	//Add Specular light for this light onto the current total 
+			}
+		}
+	}
+
+	//diffuseLight = 0.0f;	//Set Diffuse to 0 (DEBUGGING ONLY)
+	//specularLight = 0.0f; //Set Specular to 0 (DEBUGGING ONLY)
+
+	//*********************************************************************************************
+	// Get colours from texture maps
+
+	// Extract diffuse material colour for this pixel from a texture (using float3, so we get RGB - i.e. ignore any alpha in the texture)
+	float3 DiffuseMaterial = DiffuseMap.Sample(TrilinearWrap, vOut.UV).rgb;
+
+	// Sample specular material colour from alpha channel of the diffusemap
+	float SpecularMaterial = DiffuseMap.Sample(TrilinearWrap, vOut.UV).a;
+	//*********************************************************************************************
+	// Combine colours (lighting, textures) for final pixel colour
+
+	float4 combinedColour;
+
+	//combinedColour.rgb = diffuseLight + specularLight;	//Light - without material
+	combinedColour.rgb = (DiffuseMaterial * diffuseLight) + (SpecularMaterial * specularLight); //Light - with material
+	combinedColour.a = 1.0f; // No alpha processing in this shader, so just set it to 1
+
+	//Debug tool - view shadow map on uv's
+	//combinedColour.rgb = SpotLights[0].shadowMap.Sample(TrilinearWrap, vOut.UV).r;
+	return combinedColour; 
+}
+
+float4 ShadowMapParallax(VS_NORMALMAP_OUTPUT vOut) : SV_Target
+{
+	return float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 //-------------------------------------------------------------------------------------
@@ -897,5 +1115,51 @@ technique10 AlphaCutout
 		SetBlendState(AdditiveBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
 		SetRasterizerState(CullNone);
 		SetDepthStencilState(DepthWritesOff, 0);
+	}
+}
+
+technique10 DepthOnly
+{
+	// Rendering a shadow map. Only outputs the depth of each pixel
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, BasicTransform()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, PixelDepth()));
+
+		// Switch off blending states
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
+	}
+}
+
+technique10 ShadowMappingPixelLit
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, PixelLightingTransform()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, ShadowMapPix()));
+
+		// Switch off blending states
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
+	}
+}
+
+technique10 ShadowMappingParallaxLit
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, NormalMapTransform()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, ShadowMapParallax()));
+
+		// Switch off blending states
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
 	}
 }

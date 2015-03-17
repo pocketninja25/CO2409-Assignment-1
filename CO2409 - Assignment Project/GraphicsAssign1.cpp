@@ -46,10 +46,12 @@
 #include "Material.h"
 #include "ColourConversion.h"
 #include "Technique.h"
+#include "SpotLight.h"
 //--------------------------------------------------------------------------------------
 // Global Scene Variables
 //--------------------------------------------------------------------------------------
 const unsigned int NO_OF_LIGHTS = 3;
+const unsigned int NO_OF_SPOT_LIGHTS = 1;
 
 // Models and cameras encapsulated in classes for flexibity and convenience
 // The CModel class collects together geometry and world matrix, and provides functions to control the model and render it
@@ -64,6 +66,8 @@ D3DXVECTOR3 PulsingLightColour = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 
 // Light Class and orbit data
 CPositionalLight* Lights[NO_OF_LIGHTS];
+CSpotLight* SpotLight[NO_OF_SPOT_LIGHTS];
+
 CAmbientLight* AmbientLight = NULL;
 const float LightOrbitRadius = 20.0f;
 const float LightOrbitSpeed  = 0.5f;
@@ -94,6 +98,9 @@ CTechnique* ParallaxCelShadeTechnique = NULL;
 CTechnique* AlphaCutoutTechnique = NULL;
 CTechnique* ParallaxOutlinedTechnique = NULL;
 CTechnique* PixelLitOutlinedTechnique = NULL;
+CTechnique* ShadowMapPixelLitTechnique = NULL;
+CTechnique* ShadowMapParallaxLitTechnique = NULL;
+CTechnique* DepthOnlyTechnique = NULL;
 
 // Matrices
 ID3D10EffectMatrixVariable* ViewMatrixVar = NULL;
@@ -224,7 +231,12 @@ bool LoadEffectFile()
 {
 	// Compile and link the effect file
 	ID3D10Blob* pErrors; // This strangely typed variable collects any errors when compiling the effect file
-	DWORD dwShaderFlags = D3D10_SHADER_ENABLE_STRICTNESS; // These "flags" are used to set the compiler options
+	DWORD dwShaderFlags = 0; // These "flags" are used to set the compiler options
+#if defined(DEBUG)|| defined(_DEBUG)
+	dwShaderFlags |= D3D10_SHADER_DEBUG;
+	dwShaderFlags |= D3D10_SHADER_SKIP_OPTIMIZATION;
+	dwShaderFlags |= D3D10_SHADER_ENABLE_STRICTNESS;
+#endif
 
 	// Load and compile the effect file
 	HRESULT hr = D3DX10CreateEffectFromFile( L"GraphicsAssign1.fx", NULL, NULL, "fx_4_0", dwShaderFlags, 0, g_pd3dDevice, NULL, NULL, &Effect, &pErrors, NULL );
@@ -236,19 +248,21 @@ bool LoadEffectFile()
 	}
 
 	// Select techniques from compiled effect file
-	PlainColourTechnique =		new CTechnique(Effect->GetTechniqueByName("PlainColour"), false, false, false);
-	DiffuseTexturedTechnique =	new CTechnique(Effect->GetTechniqueByName("DiffuseTex"), true, false, false);
-	WiggleAndScrollTechnique =	new CTechnique(Effect->GetTechniqueByName("WiggleAndScroll"), true, false, false);
-	PixelLightingTechnique =	new CTechnique(Effect->GetTechniqueByName("PixDiffSpec"), true, false, false);
-	NormalMapTechnique =		new CTechnique(Effect->GetTechniqueByName("NormalMapping"), true, true, false);
-	ParallaxMapTechnique =		new CTechnique(Effect->GetTechniqueByName("ParallaxMapping"), true, true, false);
-	CelShadingTechnique =		new CTechnique(Effect->GetTechniqueByName("CelShading"), false, false, true);
-	AdditiveTexTintTechnique =  new CTechnique(Effect->GetTechniqueByName("AdditiveTexTint"), true, false, false);
-	ParallaxCelShadeTechnique = new CTechnique(Effect->GetTechniqueByName("ParallaxCelShaded"), true, true, true);
-	AlphaCutoutTechnique =		new CTechnique(Effect->GetTechniqueByName("AlphaCutout"), true, false, false);
-	ParallaxOutlinedTechnique = new CTechnique(Effect->GetTechniqueByName("ParallaxOutlined"), true, true, false);
-	PixelLitOutlinedTechnique = new CTechnique(Effect->GetTechniqueByName("PixelLitOutlined"), true, false, false);
-
+	PlainColourTechnique =			new CTechnique(Effect->GetTechniqueByName("PlainColour"), false, false, false);
+	DiffuseTexturedTechnique =		new CTechnique(Effect->GetTechniqueByName("DiffuseTex"), true, false, false);
+	WiggleAndScrollTechnique =		new CTechnique(Effect->GetTechniqueByName("WiggleAndScroll"), true, false, false);
+	PixelLightingTechnique =		new CTechnique(Effect->GetTechniqueByName("PixDiffSpec"), true, false, false);
+	NormalMapTechnique =			new CTechnique(Effect->GetTechniqueByName("NormalMapping"), true, true, false);
+	ParallaxMapTechnique =			new CTechnique(Effect->GetTechniqueByName("ParallaxMapping"), true, true, false);
+	CelShadingTechnique =			new CTechnique(Effect->GetTechniqueByName("CelShading"), false, false, true);
+	AdditiveTexTintTechnique =		new CTechnique(Effect->GetTechniqueByName("AdditiveTexTint"), true, false, false);
+	ParallaxCelShadeTechnique =		new CTechnique(Effect->GetTechniqueByName("ParallaxCelShaded"), true, true, true);
+	AlphaCutoutTechnique =			new CTechnique(Effect->GetTechniqueByName("AlphaCutout"), true, false, false);
+	ParallaxOutlinedTechnique =		new CTechnique(Effect->GetTechniqueByName("ParallaxOutlined"), true, true, false);
+	PixelLitOutlinedTechnique =		new CTechnique(Effect->GetTechniqueByName("PixelLitOutlined"), true, false, false);
+	ShadowMapPixelLitTechnique =	new CTechnique(Effect->GetTechniqueByName("ShadowMappingPixelLit"), true, false, false);
+	ShadowMapParallaxLitTechnique = new CTechnique(Effect->GetTechniqueByName("ShadowMappingParallaxLit"), true, true, true);
+	DepthOnlyTechnique =			new CTechnique(Effect->GetTechniqueByName("DepthOnly"), false, false, false);
 
 	// Push techniques onto the model technique list
 	CModel::m_TechniqueList.push_back(PlainColourTechnique);
@@ -263,7 +277,12 @@ bool LoadEffectFile()
 	CModel::m_TechniqueList.push_back(AlphaCutoutTechnique);
 	CModel::m_TechniqueList.push_back(ParallaxOutlinedTechnique);
 	CModel::m_TechniqueList.push_back(PixelLitOutlinedTechnique);
+	CModel::m_TechniqueList.push_back(ShadowMapPixelLitTechnique);
+	CModel::m_TechniqueList.push_back(ShadowMapParallaxLitTechnique);
+	CModel::m_TechniqueList.push_back(DepthOnlyTechnique);
 
+	CModel::SetShadowRenderTechnique(DepthOnlyTechnique);
+	
 	//--------------------------------------------
 	// Create links to effect file globals
 	//--------------------------------------------
@@ -453,13 +472,13 @@ bool InitScene()
 
 	// The model class can load ".X" files. It encapsulates (i.e. hides away from this code) the file loading/parsing and creation of vertex/index buffers
 	// We must pass an example technique used for each model. We can then only render models with techniques that uses matching vertex input data
-	if (!g_Models[0]->Load(	"Cube.x",	ParallaxMapTechnique		))	return false;
-	if (!g_Models[1]->Load(	"Teapot.x", ParallaxMapTechnique		))	return false;
-	if (!g_Models[2]->Load(	"Floor.x",	ParallaxMapTechnique		))	return false;
-	if (!g_Models[3]->Load(	"Sphere.x", WiggleAndScrollTechnique	))	return false;		
-	if (!g_Models[4]->Load(	"Troll.x",	CelShadingTechnique			))	return false;
-	if (!g_Models[5]->Load(	"Hills.x",	ParallaxOutlinedTechnique	))	return false;
-	if (!g_Models[6]->Load("A10Thunderbolt.x", PixelLitOutlinedTechnique)) return false;
+	if (!g_Models[0]->Load(	"Cube.x",			ParallaxMapTechnique		))	return false;
+	if (!g_Models[1]->Load(	"Teapot.x",			ParallaxMapTechnique		))	return false;
+	if (!g_Models[2]->Load(	"Floor.x",			ParallaxMapTechnique		))	return false;
+	if (!g_Models[3]->Load(	"Sphere.x",			WiggleAndScrollTechnique	))	return false;		
+	if (!g_Models[4]->Load(	"Troll.x",			CelShadingTechnique			))	return false;
+	if (!g_Models[5]->Load(	"Hills.x",			ParallaxOutlinedTechnique	))	return false;
+	if (!g_Models[6]->Load( "A10Thunderbolt.x",	PixelLitOutlinedTechnique	))	return false;
 	
 	
 	// Set Initial Positions/Scales of models
@@ -490,6 +509,26 @@ bool InitScene()
 	{
 		Lights[i] = new CPositionalLight;
 	}
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		SpotLight[i] = new CSpotLight;
+
+	}
+
+	SpotLight[0]->SetDiffuseColourVar(Effect->GetVariableByName("SpotLight1DiffuseCol")->AsVector());
+	SpotLight[0]->SetSpecularColourVar(Effect->GetVariableByName("SpotLight1SpecularCol")->AsVector());
+	SpotLight[0]->SetPositionVar(Effect->GetVariableByName("SpotLight1Position")->AsVector());
+	SpotLight[0]->SetFacingVectorVar(Effect->GetVariableByName("SpotLight1Facing")->AsVector());
+	SpotLight[0]->SetViewMatrixVar(Effect->GetVariableByName("SpotLight1ViewMatrix")->AsMatrix());
+	SpotLight[0]->SetProjMatrixVar(Effect->GetVariableByName("SpotLight1ProjMatrix")->AsMatrix());
+	SpotLight[0]->SetViewProjMatrixVar(Effect->GetVariableByName("SpotLight1ViewProjMatrix")->AsMatrix());
+	SpotLight[0]->SetConeAngleVar(Effect->GetVariableByName("SpotLight1CosHalfAngle")->AsScalar());
+	SpotLight[0]->SetShadowMapVar(Effect->GetVariableByName("SpotLight1ShadowMap")->AsShaderResource());
+
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		if (!SpotLight[i]->CreateShadowMap(g_pd3dDevice))	return false;
+	}
 
 	// Set light shader variables
 
@@ -500,17 +539,22 @@ bool InitScene()
 	Lights[0]->SetSpecularColourVar(Effect->GetVariableByName("Light1SpecularCol")->AsVector());
 	Lights[1]->SetSpecularColourVar(Effect->GetVariableByName("Light2SpecularCol")->AsVector());
 	Lights[2]->SetSpecularColourVar(Effect->GetVariableByName("Light3SpecularCol")->AsVector());
+
 	//Light Positions
 	Lights[0]->SetPositionVar(Effect->GetVariableByName("Light1Position")->AsVector());
 	Lights[1]->SetPositionVar(Effect->GetVariableByName("Light2Position")->AsVector());
 	Lights[2]->SetPositionVar(Effect->GetVariableByName("Light3Position")->AsVector());
 	
+	
+
+	
 	// Light Positioning, colour data etc
-	Lights[0]->SetPosition( D3DXVECTOR3(30.0f, 10.0f, 0.0f) );
-	Lights[0]->SetScale( 4.0f ); // Nice if size of light reflects its brightness
+
+	Lights[0]->SetPosition(D3DXVECTOR3(30.0f, 10.0f, 0.0f));
+	Lights[0]->SetScale(4.0f);
 	Lights[0]->SetIsStationary(false);
-	Lights[0]->SetDiffuseColour(  D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 10.0f);
-	Lights[0]->SetSpecularColour( D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 1.5f);
+	Lights[0]->SetDiffuseColour(D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 10.0f);
+	Lights[0]->SetSpecularColour(D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 1.5f);
 
 	Lights[1]->SetPosition( D3DXVECTOR3(-20.0f, 30.0f, 50.0f) );			
 	Lights[1]->SetScale( 4.0f );
@@ -518,13 +562,21 @@ bool InitScene()
 	Lights[1]->SetSpecularColour( D3DXVECTOR3(1.0f, 0.0f, 0.7f) * 15.0f);
 	Lights[1]->SetDiffuseColour(  D3DXVECTOR3(1.0f, 0.0f, 0.7f) * 15.f);
 
-	//Lights[2]->SetPosition(D3DXVECTOR3(-95.0f, 22.5f, 26.0f));
 	Lights[2]->SetPosition(D3DXVECTOR3(-90.0f, 21.0f, 23.1f));
 	Lights[2]->SetScale(4.0f);
 	Lights[2]->SetRotation(D3DXVECTOR3(ToRadians(-15.0f), ToRadians(300.0f), 0.0f));
 	Lights[2]->SetIsStationary(true);
 	Lights[2]->SetDiffuseColour(D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 20.0f);
 	Lights[2]->SetSpecularColour(D3DXVECTOR3(1.0f, 0.2f, 0.0f) * 15.0f);
+
+	SpotLight[0]->SetPosition(D3DXVECTOR3(20.0f, 20.0f, 20.0f));
+	SpotLight[0]->FacePoint(D3DXVECTOR3(0.0f, 0.0f, 50.0f));
+	SpotLight[0]->SetConeAngle(90.0f);
+	SpotLight[0]->SetScale(4.0f); 
+	SpotLight[0]->SetIsStationary(false);
+	SpotLight[0]->SetDiffuseColour(D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 50.0f);
+	SpotLight[0]->SetSpecularColour(D3DXVECTOR3(1.0f, 0.0f, 0.0f) * 1.5f);
+
 	// Update the matrices of lights that will be stationary (dont need to update them in update scene) 
 	for (unsigned int i = 0; i < NO_OF_LIGHTS; i++)
 	{
@@ -533,8 +585,23 @@ bool InitScene()
 			Lights[i]->UpdateMatrix();
 		}
 	}
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		if (SpotLight[i]->IsStationary())
+		{
+			SpotLight[i]->UpdateMatrix();
+		}
+	}
+	
+	
 
-	// Create Light models
+	// Create Light models#
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		SpotLight[i]->SetMaterial(LightMaterial);
+		if (!SpotLight[i]->LoadModel("Light.x", AdditiveTexTintTechnique))	return false;
+	}
+
 	for (unsigned int i = 0; i < 2; i++)
 	{
 		Lights[i]->SetMaterial(LightMaterial);
@@ -543,7 +610,6 @@ bool InitScene()
 
 	Lights[2]->SetMaterial(FlamesMaterial);
 	if (!Lights[2]->LoadModel("FlameShell.x", AlphaCutoutTechnique)) return false;
-
 
 	return true;
 }
@@ -621,6 +687,20 @@ void SwitchMaterialsAndRenderModes()
 			}
 		}
 	}
+	if (KeyHit(Key_9))	//Set all to have black and white noire style shading and an outline (with parallax mapping if supported)
+	{
+		for (unsigned int i = 0; i < g_Models.size(); i++)
+		{
+			if (g_Models[i]->UseTangents())
+			{
+				g_Models[i]->SetRenderTechnique(ShadowMapPixelLitTechnique);
+			}
+			else // does not use tangents
+			{
+				g_Models[i]->SetRenderTechnique(ShadowMapPixelLitTechnique);
+			}
+		}
+	}
 }
 
 // Update the scene - move/rotate each model and the camera, then update their matrices
@@ -632,16 +712,15 @@ void UpdateScene(float frameTime)
 	// Don't be deceived into thinking that this is a new method to control models - the same code we used previously is in the camera class
 	Camera->Control( frameTime, Key_Up, Key_Down, Key_Left, Key_Right, Key_W, Key_S, Key_A, Key_D );
 	Camera->UpdateMatrices();
-	
+
 	// Control cube position and update its world matrix each frame
-	g_Models[0]->Control( frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Period, Key_Comma );
+	/*g_Models[0]*/SpotLight[0]->Control( frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Period, Key_Comma );
 	
 	// Update model matrices
 	for (unsigned int i = 0; i < g_Models.size(); i++)
 	{
 		g_Models[i]->UpdateMatrix();
 	}
-	D3DMATRIX foo = g_Models[6]->GetWorldMatrix();
 
 	// Update wiggle value
 	Wiggle += 15.0f * frameTime;
@@ -688,16 +767,45 @@ void UpdateScene(float frameTime)
 			Lights[i]->UpdateMatrix();
 		}
 	}
-	
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		if (!SpotLight[i]->IsStationary())
+		{
+			SpotLight[i]->UpdateMatrix();
+		}
+	}
 }
 
 // Render everything in the scene
 void RenderScene()
 {
+	//Render shadow maps from each spotlight
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		SpotLight[i]->RenderShadowMap(g_pd3dDevice, g_Models, ViewProjMatrixVar);
+	}
+
+	//---------------------------
+	// Reset the render target back to the screen
+
+	D3D10_VIEWPORT vp;
+	vp.Width = g_ViewportWidth;
+	vp.Height = g_ViewportHeight;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	vp.TopLeftX = 0;
+	vp.TopLeftY = 0;
+	g_pd3dDevice->RSSetViewports(1, &vp);
+
+	// Select the back buffer and depth buffer to use for rendering
+	g_pd3dDevice->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
+
 	// Clear the back buffer - before drawing the geometry clear the entire window to a fixed colour
 	float ClearColor[4] = { AmbientLight->GetColour().x, AmbientLight->GetColour().y, AmbientLight->GetColour().z, 1.0f }; // Good idea to match background to ambient colour
 	g_pd3dDevice->ClearRenderTargetView( RenderTargetView, ClearColor );
 	g_pd3dDevice->ClearDepthStencilView( DepthStencilView, D3D10_CLEAR_DEPTH, 1.0f, 0 ); // Clear the depth buffer too
+
+	//-------------------------
 
 	// Common rendering settings
 
@@ -709,18 +817,18 @@ void RenderScene()
 	CameraPositionVar->SetRawValue(Camera->GetPosition(), 0, sizeof(D3DXVECTOR3));
 
 	// Lighting data
-	D3DXVECTOR3 DiffuseLightColours[NO_OF_LIGHTS] = {  /***%***/ Lights[0]->GetDiffuseColour(), PulsingLightColour, Lights[2]->GetDiffuseColour() };
-	D3DXVECTOR3 SpecularLightColours[NO_OF_LIGHTS] = { Lights[0]->GetSpecularColour(), PulsingLightColour, Lights[2]->GetSpecularColour() };
-
-	for (int i = 0; i < NO_OF_LIGHTS; i++)
+	Lights[0]->LightRender();
+	Lights[1]->LightRender(PulsingLightColour, PulsingLightColour);
+	Lights[2]->LightRender();
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
 	{
-		Lights[i]->LightRender(DiffuseLightColours[i], SpecularLightColours[i]);
+		SpotLight[i]->LightRender();
 	}
-	
+
 	AmbientLight->LightRender();
 
-	//Misc
-	WiggleVar->SetFloat(Wiggle);
+	// Misc
+	WiggleVar->SetFloat(Wiggle);	
 	
 	// Render each model - individial model data for shader (Materials etc) is encapsulated in the class
 	
@@ -729,20 +837,29 @@ void RenderScene()
 	{
 		g_Models[i]->Render();
 	}
-
-	// Render light models
 	
+	// Render light models
 	// Light 0
 	Lights[0]->ModelRender(Lights[0]->GetDiffuseColour());
 	// Light 1
 	Lights[1]->ModelRender(PulsingLightColour);
 	// Light 2
 	Lights[2]->ModelRender(Lights[2]->GetDiffuseColour());
+	// SpotLight
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		SpotLight[i]->ModelRender(SpotLight[i]->GetDiffuseColour());
+	}
+
+	//Render shadow maps from each spotlight (DEBUGGING TOOL) - show shadow map on screen
+	//SpotLight[0]->RenderShadowMap(g_pd3dDevice, g_Models, ViewProjMatrixVar, false);
+
 
 	// Display the Scene
 
 	// After we've finished drawing to the off-screen back buffer, we "present" it to the front buffer (the screen)
 	SwapChain->Present( 0, 0 );
+
 }
 
 //--------------------------------------------------------------------------------------
@@ -762,7 +879,11 @@ void ReleaseResources()
 		if (Lights[i])	{ delete Lights[i];		Lights[i]		= NULL;}
 	}
 	if (AmbientLight )  { delete AmbientLight;	AmbientLight	= NULL;}
-
+	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
+	{
+		if (SpotLight[i])		{ delete SpotLight[i];		SpotLight[i] = NULL; }
+	}
+	
 	// Deallocate model data
 	while (!g_Models.empty())
 	{
@@ -773,13 +894,14 @@ void ReleaseResources()
 	// Deallocate Material data
 	while (!CModel::m_MaterialList.empty())
 	{
-		if (CModel::m_MaterialList.back()) { delete CModel::m_MaterialList.back(); }
+		if (CModel::m_MaterialList.back()) delete CModel::m_MaterialList.back(); 
 		CModel::m_MaterialList.pop_back();
 	}
 
 	// Empty the technique list
 	while (!CModel::m_TechniqueList.empty())
 	{
+		if (CModel::m_TechniqueList.back()) delete CModel::m_TechniqueList.back();
 		CModel::m_TechniqueList.pop_back();
 	}
 

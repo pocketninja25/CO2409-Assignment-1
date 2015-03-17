@@ -75,6 +75,9 @@ private:
 	//Effect variable to pass colour to shader
 	static ID3D10EffectVectorVariable* m_ColourVar;
 
+	//Render technique for rendering shadow maps
+	static CTechnique* m_ShadowRenderTechnique;
+
 	D3DXVECTOR3 m_Colour;
 
 	unsigned int m_CurrentMaterialIndex;
@@ -92,6 +95,8 @@ public:
 
 	static void SetMatrixShaderVariable(ID3D10EffectMatrixVariable* matrixVar);
 	static void SetColourShaderVariable(ID3D10EffectVectorVariable* colourVar);
+
+	static void SetShadowRenderTechnique(CTechnique* shadowTechnique);
 
 	///////////////////////////////
 	// Constructors / Destructors
@@ -112,6 +117,12 @@ public:
 	D3DXVECTOR3 GetPosition()
 	{
 		return m_Position;
+	}
+	D3DXVECTOR3 GetFacingVector()
+	{
+		D3DXVECTOR3 facing;
+		D3DXVec3Normalize(&facing, &D3DXVECTOR3(&m_WorldMatrix(2, 0)));
+		return facing;
 	}
 	D3DXVECTOR3 GetRotation()
 	{
@@ -188,12 +199,17 @@ public:
 	// Update the world matrix of the model from its position, rotation and scaling
 	void UpdateMatrix();
 	
+	// Make the model face a certain point in world space
+	void FacePoint(D3DXVECTOR3 point);
+
 	// Control the model's position and rotation using keys provided. Amount of motion performed depends on frame time
 	void Control( float frameTime, EKeyCode turnUp, EKeyCode turnDown, EKeyCode turnLeft, EKeyCode turnRight,  
 				  EKeyCode turnCW, EKeyCode turnCCW, EKeyCode moveForward, EKeyCode moveBackward );
 
 	// Render the model with the given technique. Assumes any shader variables for the technique have already been set up (e.g. matrices and textures)
 	void Render();
+
+	void ShadowRender();
 };
 
 
