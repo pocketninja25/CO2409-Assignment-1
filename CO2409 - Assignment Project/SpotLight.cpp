@@ -161,7 +161,7 @@ D3DXMATRIX CSpotLight::GetProjectionMatrix()
 
 void CSpotLight::LightRender()
 {
-	LightRender(GetDiffuseColour(), GetSpecularColour());
+	CSpotLight::LightRender(GetDiffuseColour(), GetSpecularColour());
 }
 
 void CSpotLight::LightRender(D3DXVECTOR3 diffuseColour, D3DXVECTOR3 specularColour)
@@ -170,7 +170,8 @@ void CSpotLight::LightRender(D3DXVECTOR3 diffuseColour, D3DXVECTOR3 specularColo
 	CPositionalLight::LightRender(diffuseColour, specularColour);
 
 	//Send the cone angle to the shader
-	m_ConeAngleVar->SetFloat(cosf(ToRadians(m_ConeAngle * 0.5f)));
+	float halfCosAngle = cosf(ToRadians(m_ConeAngle * 0.5f));
+	m_ConeAngleVar->SetFloat(halfCosAngle);
 
 	//Send the facing vector of the spotlight to the shader
 	m_FacingVectorVar->SetRawValue(m_Model.GetFacingVector(), 0, sizeof(D3DXVECTOR3));

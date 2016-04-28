@@ -92,15 +92,17 @@ CTechnique* WiggleAndScrollTechnique = NULL;
 CTechnique* PixelLightingTechnique = NULL;
 CTechnique* NormalMapTechnique = NULL;
 CTechnique* ParallaxMapTechnique = NULL;
-CTechnique* CelShadingTechnique = NULL;
+CTechnique* NoireShadingTechnique = NULL;
 CTechnique* AdditiveTexTintTechnique = NULL;
-CTechnique* ParallaxCelShadeTechnique = NULL;
+CTechnique* ParallaxNoireShadeTechnique = NULL;
 CTechnique* AlphaCutoutTechnique = NULL;
 CTechnique* ParallaxOutlinedTechnique = NULL;
 CTechnique* PixelLitOutlinedTechnique = NULL;
 CTechnique* ShadowMapPixelLitTechnique = NULL;
 CTechnique* ShadowMapParallaxLitTechnique = NULL;
 CTechnique* DepthOnlyTechnique = NULL;
+CTechnique* CelShadingTechnique = NULL;
+CTechnique* ParallaxCelShadingTechnique = NULL;
 
 // Matrices
 ID3D10EffectMatrixVariable* ViewMatrixVar = NULL;
@@ -233,9 +235,8 @@ bool LoadEffectFile()
 	ID3D10Blob* pErrors; // This strangely typed variable collects any errors when compiling the effect file
 	DWORD dwShaderFlags = 0; // These "flags" are used to set the compiler options
 #if defined(DEBUG)|| defined(_DEBUG)
-	dwShaderFlags |= D3D10_SHADER_DEBUG;
-	dwShaderFlags |= D3D10_SHADER_SKIP_OPTIMIZATION;
-	dwShaderFlags |= D3D10_SHADER_ENABLE_STRICTNESS;
+	//dwShaderFlags |= D3D10_SHADER_DEBUG;
+	//dwShaderFlags |= D3D10_SHADER_SKIP_OPTIMIZATION;
 #endif
 
 	// Load and compile the effect file
@@ -254,15 +255,17 @@ bool LoadEffectFile()
 	PixelLightingTechnique =		new CTechnique(Effect->GetTechniqueByName("PixDiffSpec"), true, false, false);
 	NormalMapTechnique =			new CTechnique(Effect->GetTechniqueByName("NormalMapping"), true, true, false);
 	ParallaxMapTechnique =			new CTechnique(Effect->GetTechniqueByName("ParallaxMapping"), true, true, false);
-	CelShadingTechnique =			new CTechnique(Effect->GetTechniqueByName("CelShading"), false, false, true);
+	NoireShadingTechnique =			new CTechnique(Effect->GetTechniqueByName("NoireShading"), false, false, true);
 	AdditiveTexTintTechnique =		new CTechnique(Effect->GetTechniqueByName("AdditiveTexTint"), true, false, false);
-	ParallaxCelShadeTechnique =		new CTechnique(Effect->GetTechniqueByName("ParallaxCelShaded"), true, true, true);
+	ParallaxNoireShadeTechnique =	new CTechnique(Effect->GetTechniqueByName("ParallaxNoireShaded"), true, true, true);
 	AlphaCutoutTechnique =			new CTechnique(Effect->GetTechniqueByName("AlphaCutout"), true, false, false);
 	ParallaxOutlinedTechnique =		new CTechnique(Effect->GetTechniqueByName("ParallaxOutlined"), true, true, false);
 	PixelLitOutlinedTechnique =		new CTechnique(Effect->GetTechniqueByName("PixelLitOutlined"), true, false, false);
 	ShadowMapPixelLitTechnique =	new CTechnique(Effect->GetTechniqueByName("ShadowMappingPixelLit"), true, false, false);
 	ShadowMapParallaxLitTechnique = new CTechnique(Effect->GetTechniqueByName("ShadowMappingParallaxLit"), true, true, true);
 	DepthOnlyTechnique =			new CTechnique(Effect->GetTechniqueByName("DepthOnly"), false, false, false);
+	CelShadingTechnique =			new CTechnique(Effect->GetTechniqueByName("CelShading"), true, false, true);
+	ParallaxCelShadingTechnique =	new CTechnique(Effect->GetTechniqueByName("ParallaxCelShading"), true, true, true);
 
 	// Push techniques onto the model technique list
 	CModel::m_TechniqueList.push_back(PlainColourTechnique);
@@ -271,15 +274,17 @@ bool LoadEffectFile()
 	CModel::m_TechniqueList.push_back(PixelLightingTechnique);
 	CModel::m_TechniqueList.push_back(NormalMapTechnique);
 	CModel::m_TechniqueList.push_back(ParallaxMapTechnique);
-	CModel::m_TechniqueList.push_back(CelShadingTechnique);
+	CModel::m_TechniqueList.push_back(NoireShadingTechnique);
 	CModel::m_TechniqueList.push_back(AdditiveTexTintTechnique);
-	CModel::m_TechniqueList.push_back(ParallaxCelShadeTechnique);
+	CModel::m_TechniqueList.push_back(ParallaxNoireShadeTechnique);
 	CModel::m_TechniqueList.push_back(AlphaCutoutTechnique);
 	CModel::m_TechniqueList.push_back(ParallaxOutlinedTechnique);
 	CModel::m_TechniqueList.push_back(PixelLitOutlinedTechnique);
 	CModel::m_TechniqueList.push_back(ShadowMapPixelLitTechnique);
 	CModel::m_TechniqueList.push_back(ShadowMapParallaxLitTechnique);
 	CModel::m_TechniqueList.push_back(DepthOnlyTechnique);
+	CModel::m_TechniqueList.push_back(CelShadingTechnique);
+	CModel::m_TechniqueList.push_back(ParallaxCelShadingTechnique);
 
 	CModel::SetShadowRenderTechnique(DepthOnlyTechnique);
 	
@@ -327,8 +332,8 @@ bool InitScene()
 {
 	// Create camera
 	Camera = new CCamera();
-	Camera->SetPosition(D3DXVECTOR3(-15.0f, 20.0f, -40.0f));
-	Camera->SetRotation( D3DXVECTOR3(ToRadians(13.0f), ToRadians(18.0f), 0.0f) ); // ToRadians is a new helper function to convert degrees to radians
+	Camera->SetPosition(D3DXVECTOR3(30.0f, 30.0f, -75.0f));
+	Camera->SetRotation( D3DXVECTOR3(ToRadians(0.0f), ToRadians(-30.0f), 0.0f));
 
 	// Material initialisation
 
@@ -345,7 +350,7 @@ bool InitScene()
 	CMaterial* LightMaterial		= new CMaterial();
 	CMaterial* ThunderboltMaterial	= new CMaterial();
 	CMaterial* FlamesMaterial		= new CMaterial();
-		
+	CMaterial* GreenMaterial		= new CMaterial();
 
 	// Push Material objects onto Material list
 	CModel::m_MaterialList.push_back(StoneMaterial);
@@ -430,11 +435,13 @@ bool InitScene()
 	if (!FlamesMaterial->LoadDiffSpecMap(TEXT("flames4.png")))					return false;
 	FlamesMaterial->SetSpecularPower(64.0f);
 
-	
+	if (!GreenMaterial->LoadDiffSpecMap(TEXT("Green.png")))						return false;
+	GreenMaterial->SetSpecularPower(64.0f);
+
 	// Model initialisation
 
 	// Load/Create models
-	for (int i = 0; i < 7; i++)
+	for (int i = 0; i < 8; i++)
 	{
 		g_Models.push_back(new CModel);
 	}
@@ -448,7 +455,7 @@ bool InitScene()
 	g_Models[4]->SetMaterial(Troll1Material);
 	g_Models[5]->SetMaterial(BrainMaterial);
 	g_Models[6]->SetMaterial(ThunderboltMaterial);
-		
+	g_Models[7]->SetMaterial(GreenMaterial);
 	
 	// Set Model Colours
 	
@@ -466,19 +473,21 @@ bool InitScene()
 	g_Models[4]->SetColour(Black);
 	g_Models[5]->SetColour(Red);
 	g_Models[6]->SetColour(Yellow);	
+	g_Models[7]->SetColour(Green);
 
 	
 	// Set Render Techniques and load models
 
 	// The model class can load ".X" files. It encapsulates (i.e. hides away from this code) the file loading/parsing and creation of vertex/index buffers
 	// We must pass an example technique used for each model. We can then only render models with techniques that uses matching vertex input data
-	if (!g_Models[0]->Load(	"Cube.x",			ParallaxMapTechnique		))	return false;
+	if (!g_Models[0]->Load(	"Cube.x",			NormalMapTechnique			))	return false;
 	if (!g_Models[1]->Load(	"Teapot.x",			ParallaxMapTechnique		))	return false;
 	if (!g_Models[2]->Load(	"Floor.x",			ParallaxMapTechnique		))	return false;
 	if (!g_Models[3]->Load(	"Sphere.x",			WiggleAndScrollTechnique	))	return false;		
-	if (!g_Models[4]->Load(	"Troll.x",			CelShadingTechnique			))	return false;
+	if (!g_Models[4]->Load(	"Troll.x",			NoireShadingTechnique		))	return false;
 	if (!g_Models[5]->Load(	"Hills.x",			ParallaxOutlinedTechnique	))	return false;
 	if (!g_Models[6]->Load( "A10Thunderbolt.x",	PixelLitOutlinedTechnique	))	return false;
+	if (!g_Models[7]->Load( "Troll.x",			CelShadingTechnique			))	return false;
 	
 	
 	// Set Initial Positions/Scales of models
@@ -491,15 +500,19 @@ bool InitScene()
 	g_Models[3]->SetPosition(D3DXVECTOR3(-40.0f, 15.0f, 20.0f));
 	g_Models[3]->SetScale(0.7f);
 
-	g_Models[4]->SetPosition(D3DXVECTOR3(-25.0f, 1.0f, 80.0f));
-	g_Models[4]->SetScale(10.0f);
+	g_Models[4]->SetPosition(D3DXVECTOR3(-120.0f, 0.0f, 140.0f));
+	g_Models[4]->SetScale(50.0f);
+	g_Models[4]->SetRotation(D3DXVECTOR3(0.0f, ToRadians(-45.0f), 0.0f));
 
-	g_Models[5]->SetPosition(D3DXVECTOR3(500.0f, 0.0f, 0.0f));
+	g_Models[5]->SetPosition(D3DXVECTOR3(0.0f, 0.0f, 400.0f));
+	g_Models[5]->SetRotation(D3DXVECTOR3(ToRadians(-20.0f), 0.0f, 0.0f));
 
 	g_Models[6]->SetPosition(D3DXVECTOR3(-128.0f, 32.5f, 45.0f));
 	g_Models[6]->SetScale(5.0f);
 	g_Models[6]->SetRotation(D3DXVECTOR3(ToRadians(15.0f), ToRadians(120.0f), 0.0f));
-	
+
+	g_Models[7]->SetPosition(D3DXVECTOR3(-25.0f, 1.0f, 80.0f));
+	g_Models[7]->SetScale(10.0f);
 
 	// Load/Create lights and light models
 
@@ -679,11 +692,11 @@ void SwitchMaterialsAndRenderModes()
 		{
 			if (g_Models[i]->UseTangents())
 			{
-				g_Models[i]->SetRenderTechnique(ParallaxCelShadeTechnique);
+				g_Models[i]->SetRenderTechnique(ParallaxNoireShadeTechnique);
 			}
 			else // does not use tangents
 			{
-				g_Models[i]->SetRenderTechnique(CelShadingTechnique);
+				g_Models[i]->SetRenderTechnique(NoireShadingTechnique);
 			}
 		}
 	}
@@ -693,7 +706,21 @@ void SwitchMaterialsAndRenderModes()
 		{
 			if (g_Models[i]->UseTangents())
 			{
-				g_Models[i]->SetRenderTechnique(ShadowMapPixelLitTechnique);
+				g_Models[i]->SetRenderTechnique(ParallaxCelShadingTechnique);
+			}
+			else // does not use tangents
+			{
+				g_Models[i]->SetRenderTechnique(CelShadingTechnique);
+			}
+		}
+	}
+	if (KeyHit(Key_0))	//Set all to have black and white noire style shading and an outline (with parallax mapping if supported)
+	{
+		for (unsigned int i = 0; i < g_Models.size(); i++)
+		{
+			if (g_Models[i]->UseTangents())
+			{
+				g_Models[i]->SetRenderTechnique(ShadowMapParallaxLitTechnique);
 			}
 			else // does not use tangents
 			{
@@ -714,8 +741,10 @@ void UpdateScene(float frameTime)
 	Camera->UpdateMatrices();
 
 	// Control cube position and update its world matrix each frame
-	/*g_Models[0]*/SpotLight[0]->Control( frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Period, Key_Comma );
+	g_Models[0]->Control( frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Period, Key_Comma );
 	
+	SpotLight[0]->Control(frameTime, Key_Numpad8, Key_Numpad2, Key_Numpad4, Key_Numpad6, Key_Numpad7, Key_Numpad9, Key_Numpad3, Key_Numpad1);
+
 	// Update model matrices
 	for (unsigned int i = 0; i < g_Models.size(); i++)
 	{
@@ -822,7 +851,7 @@ void RenderScene()
 	Lights[2]->LightRender();
 	for (unsigned int i = 0; i < NO_OF_SPOT_LIGHTS; i++)
 	{
-		SpotLight[i]->LightRender();
+		SpotLight[0]->LightRender();
 	}
 
 	AmbientLight->LightRender();
